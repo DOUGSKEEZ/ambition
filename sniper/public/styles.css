@@ -24,8 +24,19 @@
   --warn: #b8860b;
 }
 
-.header-right { display: flex; align-items: center; gap: 8px; margin-left: auto; }
-a.linkbtn { text-decoration: none; }
+.header-right { display: flex; align-items: center; gap: 8px; }
+a.linkbtn { text-decoration: none; display: inline-flex; align-items: center; gap: 6px; }
+.ico { width: 20px; height: 20px; vertical-align: middle; }
+
+/* 3-zone header: brand left, page title centered, controls right. */
+.brand { display: flex; align-items: center; gap: 8px; font-size: 16px; font-weight: 700; white-space: nowrap; }
+.page-title { position: absolute; left: 50%; transform: translateX(-50%); text-align: center; pointer-events: none; }
+.page-title .pt-name { display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 18px; font-weight: 800; letter-spacing: .08em; }
+.page-title .pt-name .ico { width: 24px; height: 24px; }
+.page-title .pt-desc { font-size: 12px; color: var(--muted); margin-top: 1px; }
+
+/* Tab nav moved below the header, above the page content. */
+.page-nav { display: flex; gap: 4px; margin-bottom: 16px; justify-content: center; }
 
 * { box-sizing: border-box; }
 
@@ -48,6 +59,7 @@ header {
   top: 0;
   z-index: 10;
 }
+header .header-right { margin-left: auto; }
 
 header h1 { font-size: 18px; margin: 0; }
 

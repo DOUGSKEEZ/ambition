@@ -29,15 +29,62 @@
 }
 
 .header-right { display: flex; align-items: center; gap: 8px; }
-a.linkbtn { text-decoration: none; }
+a.linkbtn { text-decoration: none; display: inline-flex; align-items: center; gap: 6px; }
+.ico { width: 20px; height: 20px; vertical-align: middle; }
+h1 .ico { width: 24px; height: 24px; }
 * { box-sizing: border-box; }
 body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); font-size: 14px; }
 
 header { display: flex; align-items: center; gap: 16px; padding: 12px 20px; background: var(--panel); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 20; }
 header h1 { font-size: 18px; margin: 0; }
+header .header-right { margin-left: auto; }
 .tabs { display: flex; gap: 4px; }
 .spacer { flex: 1; }
 .company-picker { display: flex; align-items: center; gap: 8px; color: var(--muted); }
+
+/* 3-zone header: brand left, page title centered, controls right. */
+.brand { display: flex; align-items: center; gap: 8px; font-size: 16px; font-weight: 700; white-space: nowrap; }
+.page-title { position: absolute; left: 50%; transform: translateX(-50%); text-align: center; pointer-events: none; }
+.page-title .pt-name { display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 18px; font-weight: 800; letter-spacing: .08em; }
+.page-title .pt-name .ico { width: 24px; height: 24px; }
+.page-title .pt-desc { font-size: 12px; color: var(--muted); margin-top: 1px; }
+
+/* Tab nav + company picker below the header. 3-zone grid keeps the tabs centered
+   regardless of the picker's width (empty left column balances the right). */
+.page-nav {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: end;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--border); /* the "shelf" the folder tabs sit on */
+}
+.page-nav .company-picker { grid-column: 3; justify-self: end; align-self: center; padding-bottom: 6px; }
+
+/* Folder-tab styling (scoped to the page nav). Tabs sit on the shelf line; the
+   active tab merges into the content below it. */
+.page-nav .tabs { grid-column: 2; display: flex; gap: 6px; }
+.page-nav .tabs button {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-bottom: none;
+  border-radius: 8px 8px 0 0;
+  padding: 10px 34px;
+  min-width: 130px;
+  margin-bottom: -1px; /* overlap the shelf line */
+  color: var(--muted);
+  font-size: 15px;
+  position: relative;
+}
+.page-nav .tabs button:hover { color: var(--text); }
+.page-nav .tabs button.active {
+  background: var(--bg);
+  color: var(--accent);
+  border-color: var(--border);
+  border-top: 3px solid var(--accent); /* accent cap marks the active tab */
+  border-bottom: 1px solid var(--bg);  /* punch through the shelf so it "connects" to content */
+  padding-top: 8px;                     /* keep total height even with the thicker top border */
+  font-weight: 700;
+}
 
 button { font: inherit; color: var(--text); background: var(--panel-2); border: 1px solid var(--border); border-radius: 6px; padding: 7px 12px; cursor: pointer; }
 button:hover { border-color: var(--accent); }

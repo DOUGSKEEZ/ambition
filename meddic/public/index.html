@@ -4,6 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>meddic — Outreach</title>
+  <link rel="icon" type="image/png" href="icons/meddic-32.png" />
+  <link rel="apple-touch-icon" href="icons/meddic-180.png" />
   <script>
     // Apply saved/system theme before paint to avoid a flash.
     (function () {
@@ -16,24 +18,31 @@
 </head>
 <body>
   <header>
-    <h1>📡 meddic</h1>
-    <div class="tabs">
-      <button id="tab-today" class="active">Today</button>
-      <button id="tab-roster">Roster</button>
-      <button id="tab-campaigns">Campaigns</button>
-    </div>
-    <span class="spacer"></span>
-    <div class="company-picker">
-      <label for="company">Company</label>
-      <select id="company"></select>
+    <div class="brand">⚡️ Ambition CRM</div>
+    <div class="page-title">
+      <div class="pt-name"><img class="ico" src="icons/meddic-32.png" alt="" /> MEDDIC</div>
+      <div class="pt-desc">Campaign engine &amp; outreach tracker</div>
     </div>
     <div class="header-right">
-      <a id="cross-link" class="linkbtn" target="_blank" rel="noopener">🎯 Sniper ↗</a>
+      <a id="cross-link" class="linkbtn" target="_blank" rel="noopener"><img class="ico" src="icons/sniper-20.png" alt="" /> Sniper ↗</a>
       <button id="theme-toggle" title="Toggle light/dark">🌙</button>
     </div>
   </header>
 
   <main>
+    <nav class="page-nav">
+      <div class="tabs">
+        <button id="tab-today" class="active">Today</button>
+        <button id="tab-roster">Roster</button>
+        <button id="tab-campaigns">Campaigns</button>
+      </div>
+      <span class="spacer"></span>
+      <div class="company-picker">
+        <label for="company">Company</label>
+        <select id="company"></select>
+      </div>
+    </nav>
+
     <!-- TODAY (work queue) -->
     <section id="view-today">
       <div class="toolbar">
@@ -46,7 +55,7 @@
         <thead><tr><th></th><th>Name</th><th>Campaign</th><th>Next step</th><th>Priority</th><th>Heat</th><th>Due</th></tr></thead>
         <tbody id="today-body"></tbody>
       </table>
-      <div id="today-empty" class="empty hidden">Queue clear — nothing due. 🎯</div>
+      <div id="today-empty" class="empty hidden">Queue clear — nothing due.</div>
     </section>
 
     <!-- ROSTER -->

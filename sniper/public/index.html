@@ -4,6 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Sniper — Review</title>
+  <link rel="icon" type="image/png" href="icons/sniper-32.png" />
+  <link rel="apple-touch-icon" href="icons/sniper-180.png" />
   <script>
     // Apply saved/system theme before paint to avoid a flash.
     (function () {
@@ -16,18 +18,23 @@
 </head>
 <body>
   <header>
-    <h1>🎯 Sniper</h1>
-    <div class="tabs">
-      <button id="tab-queue" class="active">Queue</button>
-      <button id="tab-companies">Companies</button>
+    <div class="brand">⚡️ Ambition CRM</div>
+    <div class="page-title">
+      <div class="pt-name"><img class="ico" src="icons/sniper-32.png" alt="" /> SNIPER</div>
+      <div class="pt-desc">Capture, enrich &amp; review LinkedIn contacts</div>
     </div>
     <div class="header-right">
-      <a id="cross-link" class="linkbtn" target="_blank" rel="noopener">📡 meddic ↗</a>
+      <a id="cross-link" class="linkbtn" target="_blank" rel="noopener"><img class="ico" src="icons/meddic-20.png" alt="" /> meddic ↗</a>
       <button id="theme-toggle" title="Toggle light/dark">🌙</button>
     </div>
   </header>
 
   <main>
+    <nav class="page-nav">
+      <button id="tab-queue" class="active">Queue</button>
+      <button id="tab-companies">Companies</button>
+    </nav>
+
     <!-- Queue view -->
     <section id="view-queue">
       <div class="toolbar">
