@@ -1,5 +1,22 @@
 // Sniper review UI — vanilla JS, same-origin fetch.
 const $ = (id) => document.getElementById(id);
+
+// --- Theme + cross-app link (shared pattern with meddic) ---
+(function initChrome() {
+  const link = document.getElementById('cross-link');
+  if (link) link.href = `${location.protocol}//${location.hostname}:7701/`; // -> meddic
+  const btn = document.getElementById('theme-toggle');
+  const sync = () => { btn.textContent = document.documentElement.getAttribute('data-theme') === 'light' ? '☀️' : '🌙'; };
+  if (btn) {
+    sync();
+    btn.onclick = () => {
+      const next = document.documentElement.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
+      document.documentElement.setAttribute('data-theme', next);
+      localStorage.setItem('theme', next);
+      sync();
+    };
+  }
+})();
 const api = (path, opts) => fetch(path, opts).then(async (r) => {
   const body = r.headers.get('content-type')?.includes('json') ? await r.json() : null;
   if (!r.ok) throw new Error(body?.error || `HTTP ${r.status}`);
@@ -46,18 +63,46 @@ async function loadQueue() {
   const body = $('queue-body');
   body.innerHTML = '';
   $('queue-empty').classList.toggle('hidden', rows.length > 0);
+  $('select-all').checked = false;
   for (const p of rows) {
     const tr = document.createElement('tr');
+    const active = p.import_status === 'active';
     tr.innerHTML = `
+      <td><input type="checkbox" class="row-check" value="${p.id}" ${active ? 'disabled title="active contacts cannot be deleted"' : ''}></td>
       <td><img class="thumb" src="${photoUrl(p)}" alt=""></td>
       <td>${esc(p.name)}</td>
       <td>${esc(p.title)}</td>
       <td>${esc(p.company_name)}</td>
       <td>${p.type ? `<span class="badge ${p.type}">${p.type}</span>` : ''}</td>
       <td class="muted">${p.captured_at ? new Date(p.captured_at).toLocaleString() : ''}</td>`;
-    tr.onclick = () => openDetail(p.id);
+    // Open detail on row click, except when the click is on the checkbox cell.
+    tr.onclick = (e) => { if (!e.target.closest('.row-check')) openDetail(p.id); };
+    tr.querySelector('.row-check').onchange = updateBulkBar;
     body.appendChild(tr);
   }
+  updateBulkBar();
+}
+
+function selectedIds() {
+  return [...document.querySelectorAll('.row-check:checked')].map((c) => Number(c.value));
+}
+
+function updateBulkBar() {
+  const n = selectedIds().length;
+  $('bulk-bar').classList.toggle('hidden', n === 0);
+  $('bulk-count').textContent = n ? `${n} selected` : '';
+}
+
+async function bulkDelete() {
+  const ids = selectedIds();
+  if (!ids.length) return;
+  if (!confirm(`Permanently delete ${ids.length} contact${ids.length > 1 ? 's' : ''}? This cannot be undone.`)) return;
+  const r = await api('/people/bulk-delete', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids }),
+  });
+  const skipped = r.skipped_active?.length ? ` (${r.skipped_active.length} active skipped)` : '';
+  toast(`Deleted ${r.deleted.length}${skipped}`);
+  await loadQueue();
 }
 
 function esc(s) {
@@ -77,7 +122,17 @@ async function openDetail(id) {
   // Show "Re-stage" only when this contact isn't currently staged (e.g. rejected/active),
   // so a rejected contact can be pulled back into the queue.
   $('d-restage').classList.toggle('hidden', current.import_status === 'staged');
+  // Delete is offered for any non-active contact (active would cascade-wipe outreach history).
+  $('d-delete').classList.toggle('hidden', current.import_status === 'active');
   show('detail');
+}
+
+async function deleteCurrent() {
+  if (!confirm(`Permanently delete ${current.name || 'this contact'}? This cannot be undone.`)) return;
+  await api(`/people/${current.id}`, { method: 'DELETE' });
+  toast('Deleted');
+  show('queue');
+  loadQueue();
 }
 
 function collectEdits() {
@@ -204,12 +259,18 @@ $('tab-queue').onclick = () => { show('queue'); loadQueue(); };
 $('tab-companies').onclick = () => { show('companies'); loadCompanies(); };
 $('refresh-queue').onclick = loadQueue;
 $('status-filter').onchange = loadQueue;
+$('select-all').onchange = (e) => {
+  document.querySelectorAll('.row-check:not(:disabled)').forEach((c) => { c.checked = e.target.checked; });
+  updateBulkBar();
+};
+$('bulk-delete').onclick = () => bulkDelete().catch((err) => toast(err.message));
 $('back-to-queue').onclick = () => { show('queue'); loadQueue(); };
 $('d-save').onclick = () => saveEdits().catch((e) => toast(e.message));
 $('d-regenerate').onclick = () => regenerate().catch((e) => toast(e.message));
 $('d-approve').onclick = () => transition('approve').catch((e) => toast(e.message));
 $('d-reject').onclick = () => transition('reject').catch((e) => toast(e.message));
 $('d-restage').onclick = () => transition('restage').catch((e) => toast(e.message));
+$('d-delete').onclick = () => deleteCurrent().catch((e) => toast(e.message));
 $('d-photo-upload').onclick = () => uploadPhoto().catch((e) => toast(e.message));
 $('c-add').onclick = () => submitCompany().catch((e) => toast(e.message));
 $('c-cancel').onclick = cancelEditCompany;

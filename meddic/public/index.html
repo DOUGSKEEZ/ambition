@@ -4,6 +4,14 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>meddic — Outreach</title>
+  <script>
+    // Apply saved/system theme before paint to avoid a flash.
+    (function () {
+      var t = localStorage.getItem('theme');
+      if (!t) t = window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', t);
+    })();
+  </script>
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
@@ -18,6 +26,10 @@
     <div class="company-picker">
       <label for="company">Company</label>
       <select id="company"></select>
+    </div>
+    <div class="header-right">
+      <a id="cross-link" class="linkbtn" target="_blank" rel="noopener">🎯 Sniper ↗</a>
+      <button id="theme-toggle" title="Toggle light/dark">🌙</button>
     </div>
   </header>
 

@@ -4,6 +4,14 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Sniper — Review</title>
+  <script>
+    // Apply saved/system theme before paint to avoid a flash.
+    (function () {
+      var t = localStorage.getItem('theme');
+      if (!t) t = window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', t);
+    })();
+  </script>
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
@@ -12,6 +20,10 @@
     <div class="tabs">
       <button id="tab-queue" class="active">Queue</button>
       <button id="tab-companies">Companies</button>
+    </div>
+    <div class="header-right">
+      <a id="cross-link" class="linkbtn" target="_blank" rel="noopener">📡 meddic ↗</a>
+      <button id="theme-toggle" title="Toggle light/dark">🌙</button>
     </div>
   </header>
 
@@ -27,10 +39,15 @@
           <option value="">all</option>
         </select>
         <button id="refresh-queue">Refresh</button>
+        <span class="spacer"></span>
+        <span id="bulk-bar" class="hidden">
+          <span id="bulk-count" class="muted"></span>
+          <button id="bulk-delete" class="bad">Delete selected</button>
+        </span>
       </div>
       <table>
         <thead>
-          <tr><th></th><th>Name</th><th>Title</th><th>Company</th><th>Type</th><th>Captured</th></tr>
+          <tr><th><input type="checkbox" id="select-all" title="Select all"></th><th></th><th>Name</th><th>Title</th><th>Company</th><th>Type</th><th>Captured</th></tr>
         </thead>
         <tbody id="queue-body"></tbody>
       </table>
@@ -106,6 +123,7 @@
             <button id="d-regenerate">Regenerate AI notes</button>
             <span class="spacer"></span>
             <button id="d-restage" class="hidden">Re-stage</button>
+            <button id="d-delete" class="bad hidden">Delete</button>
             <button id="d-approve" class="good">Approve →</button>
             <button id="d-reject" class="bad">Reject</button>
           </div>

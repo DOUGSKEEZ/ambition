@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { isAbsolute, join, resolve } from 'node:path';
 import busboy from 'busboy';
 import { query } from '../db.js';
@@ -8,12 +8,22 @@ import { synthesize } from '../ai.js';
 const router = Router();
 
 const ROOT = resolve(import.meta.dirname, '..', '..');
-const MEDIA_DIR = (() => {
-  const p = process.env.MEDIA_DIR || './media';
+const resolveDir = (envVal, fallback) => {
+  const p = envVal || fallback;
   const dir = isAbsolute(p) ? p : join(ROOT, p);
   mkdirSync(dir, { recursive: true });
   return dir;
-})();
+};
+const MEDIA_DIR = resolveDir(process.env.MEDIA_DIR, './media');
+const RAW_DIR = resolveDir(process.env.RAW_DIR, './raw');
+
+// Best-effort removal of a person's on-disk artifacts (photo + raw HTML).
+function deletePersonFiles(person) {
+  for (const f of [person.photo_path && join(MEDIA_DIR, person.photo_path),
+                   person.raw_html && join(RAW_DIR, person.raw_html)]) {
+    if (f) { try { rmSync(f, { force: true }); } catch { /* ignore */ } }
+  }
+}
 
 // Columns the review UI is allowed to PATCH.
 const EDITABLE = new Set([
@@ -121,6 +131,46 @@ function statusRoute(status) {
 router.post('/:id/approve', statusRoute('active'));
 router.post('/:id/reject', statusRoute('rejected'));
 router.post('/:id/restage', statusRoute('staged')); // recover a rejected/active contact
+
+// POST /people/bulk-delete  { ids: [..] } — permanently delete contacts + their files.
+// Refuses 'active' contacts (deleting one would cascade-wipe its meddic outreach history);
+// returns which ids were deleted vs skipped. Must be declared before DELETE /:id.
+router.post('/bulk-delete', async (req, res) => {
+  try {
+    const ids = (req.body?.ids || []).map(Number).filter(Number.isInteger);
+    if (!ids.length) return res.status(400).json({ error: 'no ids provided' });
+
+    const rows = (await query('SELECT * FROM people WHERE id = ANY($1)', [ids])).rows;
+    const deletable = rows.filter((p) => p.import_status !== 'active');
+    const skippedActive = rows.filter((p) => p.import_status === 'active').map((p) => p.id);
+
+    if (deletable.length) {
+      await query('DELETE FROM people WHERE id = ANY($1)', [deletable.map((p) => p.id)]);
+      deletable.forEach(deletePersonFiles);
+    }
+    res.json({ deleted: deletable.map((p) => p.id), skipped_active: skippedActive });
+  } catch (err) {
+    console.error('[POST /people/bulk-delete]', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// DELETE /people/:id — permanently delete one contact + its files. Refuses 'active'.
+router.delete('/:id', async (req, res) => {
+  try {
+    const person = await getPerson(req.params.id);
+    if (!person) return res.status(404).json({ error: 'not found' });
+    if (person.import_status === 'active') {
+      return res.status(409).json({ error: 'cannot delete an active contact; reject or set inactive first' });
+    }
+    await query('DELETE FROM people WHERE id = $1', [person.id]);
+    deletePersonFiles(person);
+    res.json({ deleted: person.id });
+  } catch (err) {
+    console.error('[DELETE /people/:id]', err);
+    res.status(500).json({ error: err.message });
+  }
+});
 
 // POST /people/:id/photo — multipart upload to replace the image.
 router.post('/:id/photo', async (req, res) => {

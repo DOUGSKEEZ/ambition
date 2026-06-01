@@ -1,5 +1,23 @@
 // meddic SPA — vanilla JS, same-origin fetch.
 const $ = (id) => document.getElementById(id);
+
+// --- Theme + cross-app link (shared pattern with sniper) ---
+(function initChrome() {
+  const link = document.getElementById('cross-link');
+  if (link) link.href = `${location.protocol}//${location.hostname}:7700/`; // -> sniper
+  const btn = document.getElementById('theme-toggle');
+  const sync = () => { btn.textContent = document.documentElement.getAttribute('data-theme') === 'light' ? '☀️' : '🌙'; };
+  if (btn) {
+    sync();
+    btn.onclick = () => {
+      const next = document.documentElement.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
+      document.documentElement.setAttribute('data-theme', next);
+      localStorage.setItem('theme', next);
+      sync();
+    };
+  }
+})();
+
 const api = (path, opts) => fetch(path, opts).then(async (r) => {
   const body = r.headers.get('content-type')?.includes('json') ? await r.json() : null;
   if (!r.ok) throw new Error(body?.error || `HTTP ${r.status}`);
