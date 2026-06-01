@@ -123,8 +123,8 @@ async function openPerson(id) {
   $('p-priority_score').value = person.priority_score ?? '';
   $('p-next_action_date').value = person.next_action_date ? person.next_action_date.slice(0, 10) : '';
   $('p-status').value = person.status || 'active';
-  $('p-ai_summary').textContent = person.ai_summary || '—';
-  $('p-ai_ins').textContent = person.ai_ins || '—';
+  $('p-ai_summary').value = person.ai_summary || '';
+  $('p-ai_ins').value = person.ai_ins || '';
   $('p-my_notes').value = person.my_notes || '';
 
   // Campaign assign dropdown
@@ -226,6 +226,24 @@ async function saveTracker() {
 async function saveNotes() {
   await api(`/people/${person.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ my_notes: $('p-my_notes').value }) });
   toast('Notes saved');
+}
+async function saveContext() {
+  await api(`/people/${person.id}`, {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ai_summary: $('p-ai_summary').value, ai_ins: $('p-ai_ins').value }),
+  });
+  toast('Context saved');
+}
+async function archivePerson() {
+  await api(`/people/${person.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'inactive' }) });
+  toast('Archived (set inactive)');
+  show('roster'); loadRoster();
+}
+async function deletePerson() {
+  if (!confirm(`Permanently delete ${person.name || 'this contact'}?\n\nThis removes the contact (from Sniper too) AND all their campaign runs and message history. This cannot be undone.\n\nTip: "Archive" instead keeps everything and just hides them from active views.`)) return;
+  await api(`/people/${person.id}`, { method: 'DELETE' });
+  toast('Deleted');
+  show('roster'); loadRoster();
 }
 async function assign(bespoke) {
   const body = bespoke
@@ -334,6 +352,9 @@ $('roster-status').onchange = loadRoster;
 $('back-from-person').onclick = () => { show('today'); loadToday(); };
 $('p-save-tracker').onclick = () => saveTracker().catch((e) => toast(e.message));
 $('p-save-notes').onclick = () => saveNotes().catch((e) => toast(e.message));
+$('p-save-context').onclick = () => saveContext().catch((e) => toast(e.message));
+$('p-archive').onclick = () => archivePerson().catch((e) => toast(e.message));
+$('p-delete').onclick = () => deletePerson().catch((e) => toast(e.message));
 $('p-assign').onclick = () => assign(false).catch((e) => toast(e.message));
 $('p-assign-bespoke').onclick = () => assign(true).catch((e) => toast(e.message));
 $('p-add-step').onclick = () => addBespokeStep().catch((e) => toast(e.message));

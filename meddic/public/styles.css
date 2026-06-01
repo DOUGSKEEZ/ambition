@@ -47,7 +47,10 @@ button.bad { background: var(--bad); border-color: var(--bad); color: #2a0805; }
 button.active { background: var(--accent); border-color: var(--accent); color: #fff; }
 button.sm { padding: 4px 8px; font-size: 12px; }
 
-main { padding: 20px; max-width: 1150px; margin: 0 auto; }
+/* Use the full monitor (capped so it doesn't get absurd on ultrawides). */
+main { padding: 20px; max-width: 1700px; margin: 0 auto; }
+/* Person-detail workspace: a wide left context column (notes/summary/ins get real room). */
+#view-person .cols { grid-template-columns: minmax(440px, 1fr) 1.3fr; }
 select, input[type="text"], input[type="number"], input[type="date"], textarea {
   font: inherit; color: var(--text); background: var(--panel-2); border: 1px solid var(--border);
   border-radius: 6px; padding: 7px 10px;

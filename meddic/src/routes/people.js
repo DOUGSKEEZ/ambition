@@ -3,10 +3,12 @@ import { query } from '../db.js';
 
 const router = Router();
 
-// Tracker columns meddic is allowed to write. Sniper identity/enrichment columns are read-only
-// here — except my_notes, the shared Doug-owned field.
+// Columns meddic may write. Tracker columns are meddic-owned; my_notes is the shared
+// Doug field; ai_summary/ai_ins are Sniper-owned enrichment that Doug can override from
+// here (they heavily drive drafting; Sniper recapture preserves them, so edits survive).
 const TRACKER_FIELDS = new Set([
-  'status', 'hot_cold', 'priority_score', 'next_action_date', 'last_action_at', 'my_notes',
+  'status', 'hot_cold', 'priority_score', 'next_action_date', 'last_action_at',
+  'my_notes', 'ai_summary', 'ai_ins',
 ]);
 
 // GET /people?company_id=&status=active — roster for a company.
@@ -89,6 +91,21 @@ router.put('/:id', async (req, res) => {
     res.json(result.rows[0]);
   } catch (err) {
     console.error('[PUT /people/:id]', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// DELETE /people/:id — permanently remove the contact. WARNING: this is the SAME row
+// Sniper owns, and the FK cascade wipes the contact's campaign runs + all drafted/sent
+// message history. Archiving (PUT status='inactive') is the reversible alternative; the
+// UI surfaces Archive prominently and confirms before allowing this.
+router.delete('/:id', async (req, res) => {
+  try {
+    const result = await query('DELETE FROM people WHERE id = $1 RETURNING id, name', [req.params.id]);
+    if (!result.rowCount) return res.status(404).json({ error: 'not found' });
+    res.json({ deleted: result.rows[0].id });
+  } catch (err) {
+    console.error('[DELETE /people/:id]', err);
     res.status(500).json({ error: err.message });
   }
 });

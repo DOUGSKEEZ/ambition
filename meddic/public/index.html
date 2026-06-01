@@ -105,9 +105,19 @@
           </div>
 
           <div class="card">
-            <h3>Sniper context (read-only)</h3>
-            <div class="field"><label>AI summary</label><div class="context-block" id="p-ai_summary"></div></div>
-            <div class="field"><label>AI ins</label><div class="context-block" id="p-ai_ins"></div></div>
+            <h3>Sniper context <span class="muted" style="text-transform:none;font-weight:400">(editable — drives drafting)</span></h3>
+            <div class="field"><label>AI summary</label><textarea id="p-ai_summary"></textarea></div>
+            <div class="field"><label>AI ins</label><textarea id="p-ai_ins"></textarea></div>
+            <button id="p-save-context" class="primary sm">Save context</button>
+          </div>
+
+          <div class="card">
+            <h3>Manage contact</h3>
+            <div class="flex wrap">
+              <button id="p-archive" class="sm">Archive (set inactive)</button>
+              <button id="p-delete" class="bad sm">Delete permanently</button>
+            </div>
+            <p class="muted" style="margin:8px 0 0;font-size:12px">Archive keeps the contact &amp; notes (searchable via the Roster status filter). Delete is permanent and also removes their campaign history.</p>
           </div>
         </div>
 
