@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>meddic — Outreach</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header>
+    <h1>📡 meddic</h1>
+    <div class="tabs">
+      <button id="tab-today" class="active">Today</button>
+      <button id="tab-roster">Roster</button>
+      <button id="tab-campaigns">Campaigns</button>
+    </div>
+    <span class="spacer"></span>
+    <div class="company-picker">
+      <label for="company">Company</label>
+      <select id="company"></select>
+    </div>
+  </header>
+
+  <main>
+    <!-- TODAY (work queue) -->
+    <section id="view-today">
+      <div class="toolbar">
+        <strong>Today's touches</strong>
+        <span class="spacer"></span>
+        <button id="refresh-today" class="sm">Refresh</button>
+      </div>
+      <p class="queue-note" id="today-note"></p>
+      <table>
+        <thead><tr><th></th><th>Name</th><th>Campaign</th><th>Next step</th><th>Priority</th><th>Heat</th><th>Due</th></tr></thead>
+        <tbody id="today-body"></tbody>
+      </table>
+      <div id="today-empty" class="empty hidden">Queue clear — nothing due. 🎯</div>
+    </section>
+
+    <!-- ROSTER -->
+    <section id="view-roster" class="hidden">
+      <div class="toolbar">
+        <strong>Roster</strong>
+        <label for="roster-status">status</label>
+        <select id="roster-status">
+          <option value="active" selected>active</option>
+          <option value="inactive">inactive</option>
+          <option value="">all</option>
+        </select>
+        <span class="spacer"></span>
+        <button id="refresh-roster" class="sm">Refresh</button>
+      </div>
+      <table>
+        <thead><tr><th></th><th>Name</th><th>Title</th><th>Campaign</th><th>Step</th><th>Priority</th><th>Heat</th><th>Next action</th></tr></thead>
+        <tbody id="roster-body"></tbody>
+      </table>
+      <div id="roster-empty" class="empty hidden">No contacts. Approve some in Sniper first (they become <em>active</em> here).</div>
+    </section>
+
+    <!-- PERSON DETAIL -->
+    <section id="view-person" class="hidden">
+      <p><a class="back" id="back-from-person">← Back</a></p>
+      <div class="detail-head">
+        <img id="p-photo" alt="" />
+        <div>
+          <h2 id="p-name"></h2>
+          <div class="muted" id="p-subtitle"></div>
+        </div>
+      </div>
+      <div class="cols">
+        <div class="left">
+          <div class="card">
+            <h3>My notes</h3>
+            <textarea id="p-my_notes" placeholder="Your own notes on this contact — the highest-signal context for drafting."></textarea>
+            <button id="p-save-notes" class="primary sm" style="margin-top:6px">Save notes</button>
+          </div>
+
+          <div class="card">
+            <h3>Tracker</h3>
+            <div class="row2">
+              <div class="field"><label>Heat</label>
+                <select id="p-hot_cold"><option value="">—</option><option value="hot">hot</option><option value="warm">warm</option><option value="cold">cold</option></select>
+              </div>
+              <div class="field"><label>Priority (0-100)</label><input id="p-priority_score" type="number" min="0" max="100" /></div>
+            </div>
+            <div class="row2">
+              <div class="field"><label>Next action date</label><input id="p-next_action_date" type="date" /></div>
+              <div class="field"><label>Status</label>
+                <select id="p-status"><option value="active">active</option><option value="inactive">inactive</option></select>
+              </div>
+            </div>
+            <button id="p-save-tracker" class="primary sm">Save tracker</button>
+          </div>
+
+          <div class="card">
+            <h3>Sniper context (read-only)</h3>
+            <div class="field"><label>AI summary</label><div class="context-block" id="p-ai_summary"></div></div>
+            <div class="field"><label>AI ins</label><div class="context-block" id="p-ai_ins"></div></div>
+          </div>
+        </div>
+
+        <div class="right">
+          <div class="card">
+            <h3>Campaign run</h3>
+            <div class="flex wrap">
+              <select id="p-assign-campaign"></select>
+              <label class="muted">start at step <input id="p-assign-step" type="number" min="1" value="1" style="width:60px" /></label>
+              <button id="p-assign" class="primary sm">Assign / Switch</button>
+              <button id="p-assign-bespoke" class="sm">Run bespoke</button>
+            </div>
+            <p class="muted" id="p-run-label" style="margin:10px 0 0"></p>
+          </div>
+
+          <div id="p-steps"></div>
+          <button id="p-add-step" class="sm hidden">+ Add bespoke step</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- CAMPAIGNS -->
+    <section id="view-campaigns" class="hidden">
+      <div class="toolbar"><strong>Campaigns</strong><span class="spacer"></span><button id="new-campaign" class="primary sm">+ New campaign</button></div>
+      <table>
+        <thead><tr><th>Name</th><th>Category</th><th>Goal</th><th>Steps</th><th></th></tr></thead>
+        <tbody id="campaigns-body"></tbody>
+      </table>
+    </section>
+
+    <!-- CAMPAIGN EDITOR -->
+    <section id="view-campaign-edit" class="hidden">
+      <p><a class="back" id="back-from-campaign">← Back to campaigns</a></p>
+      <div class="card">
+        <div class="row3">
+          <div class="field"><label>Name</label><input id="ce-name" /></div>
+          <div class="field"><label>Category</label>
+            <input id="ce-category" list="cat-list" placeholder="recruiter / peer / hiring_manager / …" />
+            <datalist id="cat-list"><option value="recruiter"><option value="peer"><option value="hiring_manager"></datalist>
+          </div>
+          <div class="field"><label>Goal</label><input id="ce-goal" /></div>
+        </div>
+        <button id="ce-save" class="primary sm">Save campaign</button>
+        <button id="ce-delete" class="bad sm" style="margin-left:8px">Delete campaign</button>
+      </div>
+      <div class="card">
+        <h3>Steps</h3>
+        <div id="ce-steps" class="campaign-steps"></div>
+        <button id="ce-add-step" class="sm" style="margin-top:10px">+ Add step</button>
+      </div>
+    </section>
+  </main>
+
+  <div id="toast" class="toast hidden"></div>
+  <script src="app.js"></script>
+</body>
+</html>

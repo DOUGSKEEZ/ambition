@@ -103,40 +103,88 @@ async function callLlm(url, body, timeoutMs = 60000) {
   }
 }
 
-/**
- * Generate { summary, ins } for a person of the given type.
- * Tries LLM_URL (30B); on any failure, retries LLM_FALLBACK_URL (4B).
- * Returns { summary:'', ins:'' } if both fail, so capture never blocks.
- */
-export async function synthesize(type, fields) {
+// Local (OpenAI-compatible) synthesis: tries LLM_URL (30B) then LLM_FALLBACK_URL (4B).
+async function synthesizeLocal(messages) {
   const body = {
     model: process.env.LLM_MODEL || undefined,
-    messages: [
-      { role: 'system', content: SYSTEM },
-      { role: 'user', content: buildUserMessage(type, fields) },
-    ],
+    messages,
     temperature: 0.4,
     max_tokens: 600,
     response_format: { type: 'json_object' },
   };
-
   const endpoints = [process.env.LLM_URL, process.env.LLM_FALLBACK_URL].filter(Boolean);
   for (const url of endpoints) {
     try {
-      const content = await callLlm(url, body);
-      const parsed = parseLlmJson(content);
-      if (parsed && (parsed.summary || parsed.ins)) {
-        return {
-          summary: String(parsed.summary || '').trim(),
-          ins: String(parsed.ins || '').trim(),
-        };
-      }
+      const parsed = parseLlmJson(await callLlm(url, body));
+      if (parsed && (parsed.summary || parsed.ins)) return parsed;
       console.warn(`[ai] ${url} returned unparseable content`);
     } catch (err) {
       console.warn(`[ai] ${url} failed: ${err.message}`);
     }
   }
+  return null;
+}
 
-  console.error('[ai] all LLM endpoints failed; returning empty notes');
+// Claude (Anthropic Messages API) synthesis.
+async function synthesizeAnthropic(messages) {
+  const key = process.env.ANTHROPIC_API_KEY;
+  if (!key) throw new Error('ANTHROPIC_API_KEY not set');
+  const [system, user] = [messages[0].content, messages[1].content];
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      'x-api-key': key,
+      'anthropic-version': '2023-06-01',
+    },
+    body: JSON.stringify({
+      model: process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-6',
+      max_tokens: 700,
+      system: `${system}\nReply with ONLY the JSON object, no prose, no code fences.`,
+      messages: [{ role: 'user', content: user }],
+    }),
+  });
+  if (!res.ok) {
+    const t = await res.text().catch(() => '');
+    throw new Error(`Anthropic ${res.status} ${t}`.trim());
+  }
+  const data = await res.json();
+  const text = (data?.content || []).filter((b) => b.type === 'text').map((b) => b.text).join('');
+  return parseLlmJson(text);
+}
+
+/**
+ * Generate { summary, ins } for a person of the given type.
+ * Provider via AI_PROVIDER (anthropic|local). Default anthropic for quality; falls back to
+ * local automatically when no key is set, so capture never depends on a key being present.
+ * Returns { summary:'', ins:'' } if everything fails, so capture never blocks.
+ */
+export async function synthesize(type, fields) {
+  const messages = [
+    { role: 'system', content: SYSTEM },
+    { role: 'user', content: buildUserMessage(type, fields) },
+  ];
+  let provider = (process.env.AI_PROVIDER || 'anthropic').toLowerCase();
+  if (provider === 'anthropic' && !process.env.ANTHROPIC_API_KEY) {
+    console.warn('[ai] anthropic selected but no ANTHROPIC_API_KEY — using local');
+    provider = 'local';
+  }
+
+  // Try the chosen provider; on any failure, fall back to the other one.
+  const order = provider === 'anthropic' ? ['anthropic', 'local'] : ['local', 'anthropic'];
+  for (const p of order) {
+    if (p === 'anthropic' && !process.env.ANTHROPIC_API_KEY) continue;
+    try {
+      const parsed = p === 'anthropic' ? await synthesizeAnthropic(messages) : await synthesizeLocal(messages);
+      if (parsed && (parsed.summary || parsed.ins)) {
+        console.log(`[ai] synthesized via ${p}`);
+        return { summary: String(parsed.summary || '').trim(), ins: String(parsed.ins || '').trim() };
+      }
+    } catch (err) {
+      console.warn(`[ai] ${p} failed: ${err.message}`);
+    }
+  }
+
+  console.error('[ai] all providers failed; returning empty notes');
   return { summary: '', ins: '' };
 }
