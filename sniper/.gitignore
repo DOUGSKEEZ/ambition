@@ -1,0 +1,10 @@
+node_modules/
+.env
+media/*
+inbox/*
+raw/*
+fixtures/*
+!media/.gitkeep
+!inbox/.gitkeep
+!raw/.gitkeep
+!fixtures/.gitkeep

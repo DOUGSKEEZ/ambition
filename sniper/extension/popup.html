@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <style>
+    body { width: 280px; font-family: system-ui, sans-serif; padding: 12px; margin: 0; background: #181b22; color: #e6e8ec; }
+    h1 { font-size: 15px; margin: 0 0 12px; }
+    label { display: block; font-size: 12px; color: #9aa3b2; margin: 10px 0 4px; }
+    select, input { width: 100%; box-sizing: border-box; padding: 6px 8px; background: #1f2430; color: #e6e8ec; border: 1px solid #2a2f3a; border-radius: 6px; font: inherit; }
+    button { width: 100%; margin-top: 14px; padding: 9px; background: #4f8cff; color: #fff; border: none; border-radius: 6px; font: inherit; cursor: pointer; }
+    button:disabled { opacity: .6; cursor: default; }
+    #status { font-size: 12px; margin-top: 10px; min-height: 16px; }
+    .ok { color: #2ecc71; } .err { color: #e74c3c; }
+  </style>
+</head>
+<body>
+  <h1>🎯 Sniper Capture</h1>
+
+  <label for="company">Company</label>
+  <select id="company"><option value="">Loading…</option></select>
+
+  <label for="type">Contact type</label>
+  <select id="type">
+    <option value="recruiter">recruiter</option>
+    <option value="peer">peer</option>
+    <option value="hiring_manager">hiring_manager</option>
+  </select>
+
+  <label for="priority">Priority (optional)</label>
+  <select id="priority">
+    <option value="">—</option>
+    <option value="1">1</option>
+    <option value="2">2</option>
+    <option value="3">3</option>
+  </select>
+
+  <button id="capture">Capture this profile</button>
+  <div id="status"></div>
+
+  <script src="config.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

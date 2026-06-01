@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sniper — Review</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header>
+    <h1>🎯 Sniper</h1>
+    <div class="tabs">
+      <button id="tab-queue" class="active">Queue</button>
+      <button id="tab-companies">Companies</button>
+    </div>
+  </header>
+
+  <main>
+    <!-- Queue view -->
+    <section id="view-queue">
+      <div class="toolbar">
+        <label for="status-filter">Status</label>
+        <select id="status-filter">
+          <option value="staged" selected>staged</option>
+          <option value="active">active</option>
+          <option value="rejected">rejected</option>
+          <option value="">all</option>
+        </select>
+        <button id="refresh-queue">Refresh</button>
+      </div>
+      <table>
+        <thead>
+          <tr><th></th><th>Name</th><th>Title</th><th>Company</th><th>Type</th><th>Captured</th></tr>
+        </thead>
+        <tbody id="queue-body"></tbody>
+      </table>
+      <div id="queue-empty" class="empty hidden">Nothing here.</div>
+    </section>
+
+    <!-- Detail / edit view -->
+    <section id="view-detail" class="hidden">
+      <p><a class="back" id="back-to-queue">← Back to queue</a></p>
+      <div class="detail">
+        <div class="photo-col">
+          <img id="d-photo" alt="photo" />
+          <div class="field" style="margin-top:12px;text-align:left">
+            <label>Replace photo</label>
+            <input type="file" id="d-photo-file" accept="image/*" />
+            <button id="d-photo-upload" style="margin-top:6px;width:100%">Upload</button>
+          </div>
+          <p class="muted" id="d-slug" style="margin-top:12px;word-break:break-all"></p>
+        </div>
+
+        <div class="fields-col">
+          <div class="row2">
+            <div class="field"><label>Name</label><input id="f-name" /></div>
+            <div class="field"><label>Title / Headline</label><input id="f-title" /></div>
+          </div>
+          <div class="row2">
+            <div class="field"><label>Location</label><input id="f-location" /></div>
+            <div class="field"><label>Priority</label><input id="f-priority" type="number" min="1" max="3" /></div>
+          </div>
+          <div class="row2">
+            <div class="field">
+              <label>Target company (your list)</label>
+              <select id="f-company_id"></select>
+            </div>
+            <div class="field">
+              <label>Type</label>
+              <select id="f-type">
+                <option value="recruiter">recruiter</option>
+                <option value="peer">peer</option>
+                <option value="hiring_manager">hiring_manager</option>
+              </select>
+            </div>
+          </div>
+          <div class="row2">
+            <div class="field"><label>Current title</label><input id="f-current_title" /></div>
+            <div class="field"><label>Current company (from profile)</label><input id="f-current_company" /></div>
+          </div>
+          <div class="row2">
+            <div class="field"><label>Current tenure</label><input id="f-current_tenure" /></div>
+            <div class="field"><label>&nbsp;</label><span></span></div>
+          </div>
+          <div class="row2">
+            <div class="field"><label>Previous title</label><input id="f-previous_title" /></div>
+            <div class="field"><label>Previous company</label><input id="f-previous_company" /></div>
+          </div>
+          <div class="field"><label>About</label><textarea id="f-about"></textarea></div>
+
+          <div class="note-block">
+            <h3>AI summary</h3>
+            <textarea id="f-ai_summary"></textarea>
+          </div>
+          <div class="note-block">
+            <h3>AI ins (type-specific)</h3>
+            <textarea id="f-ai_ins"></textarea>
+          </div>
+          <div class="note-block">
+            <h3>My notes</h3>
+            <textarea id="f-my_notes"></textarea>
+          </div>
+
+          <div class="actions">
+            <button id="d-save" class="primary">Save edits</button>
+            <button id="d-regenerate">Regenerate AI notes</button>
+            <span class="spacer"></span>
+            <button id="d-restage" class="hidden">Re-stage</button>
+            <button id="d-approve" class="good">Approve →</button>
+            <button id="d-reject" class="bad">Reject</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Companies view -->
+    <section id="view-companies" class="hidden">
+      <h2>Companies</h2>
+      <div class="toolbar">
+        <input type="text" id="c-name" placeholder="Company name" />
+        <input type="text" id="c-tier" placeholder="Tier (optional)" />
+        <input type="text" id="c-notes" placeholder="Notes (optional)" />
+        <button id="c-add" class="primary">Add company</button>
+        <button id="c-cancel" class="hidden">Cancel</button>
+      </div>
+      <ul class="companies-list" id="companies-list"></ul>
+    </section>
+  </main>
+
+  <div id="toast" class="toast hidden"></div>
+  <script src="app.js"></script>
+</body>
+</html>

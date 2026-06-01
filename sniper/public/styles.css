@@ -1,0 +1,104 @@
+:root {
+  --bg: #0f1115;
+  --panel: #181b22;
+  --panel-2: #1f2430;
+  --border: #2a2f3a;
+  --text: #e6e8ec;
+  --muted: #9aa3b2;
+  --accent: #4f8cff;
+  --good: #2ecc71;
+  --bad: #e74c3c;
+  --warn: #f1c40f;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 14px;
+}
+
+header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 20px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+header h1 { font-size: 18px; margin: 0; }
+
+.tabs { display: flex; gap: 4px; margin-left: auto; }
+
+button {
+  font: inherit;
+  color: var(--text);
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 7px 12px;
+  cursor: pointer;
+}
+button:hover { border-color: var(--accent); }
+button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+button.good { background: var(--good); border-color: var(--good); color: #04220f; }
+button.bad { background: var(--bad); border-color: var(--bad); color: #2a0805; }
+button.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+main { padding: 20px; max-width: 1100px; margin: 0 auto; }
+
+.toolbar { display: flex; gap: 8px; align-items: center; margin-bottom: 16px; }
+.toolbar label { color: var(--muted); }
+select, input[type="text"], input[type="number"], textarea {
+  font: inherit;
+  color: var(--text);
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 7px 10px;
+}
+textarea { width: 100%; resize: vertical; min-height: 70px; line-height: 1.5; white-space: pre-wrap; }
+.note-block textarea { min-height: 130px; }
+
+table { width: 100%; border-collapse: collapse; background: var(--panel); border-radius: 8px; overflow: hidden; }
+th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border); }
+th { color: var(--muted); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+tbody tr { cursor: pointer; }
+tbody tr:hover { background: var(--panel-2); }
+
+.thumb { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; background: var(--panel-2); }
+
+.badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; background: var(--panel-2); border: 1px solid var(--border); }
+.badge.recruiter { color: #ffd479; }
+.badge.peer { color: #7fd4ff; }
+.badge.hiring_manager { color: #b69cff; }
+
+/* Detail / edit view */
+.detail { display: grid; grid-template-columns: 240px 1fr; gap: 24px; }
+.detail .photo-col { text-align: center; }
+.detail .photo-col img { width: 200px; height: 200px; border-radius: 12px; object-fit: cover; background: var(--panel-2); }
+.field { margin-bottom: 14px; }
+.field label { display: block; color: var(--muted); margin-bottom: 4px; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+.field input, .field select { width: 100%; }
+.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.note-block { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 14px; margin-bottom: 14px; }
+.note-block h3 { margin: 0 0 8px; font-size: 13px; }
+.actions { display: flex; gap: 8px; margin-top: 20px; flex-wrap: wrap; }
+.actions .spacer { flex: 1; }
+
+.companies-list { list-style: none; padding: 0; }
+.companies-list li { padding: 8px 12px; border-bottom: 1px solid var(--border); display: flex; gap: 10px; }
+.companies-list li .tier { color: var(--muted); }
+
+.hidden { display: none !important; }
+.muted { color: var(--muted); }
+.toast { position: fixed; bottom: 20px; right: 20px; background: var(--panel-2); border: 1px solid var(--accent); padding: 12px 16px; border-radius: 8px; }
+.empty { color: var(--muted); padding: 40px; text-align: center; }
+a.back { color: var(--accent); cursor: pointer; text-decoration: none; }
