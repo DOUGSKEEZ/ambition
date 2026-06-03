@@ -42,7 +42,21 @@ function show(view) {
   $('tab-today').classList.toggle('active', view === 'today');
   $('tab-roster').classList.toggle('active', view === 'roster');
   $('tab-campaigns').classList.toggle('active', view === 'campaigns' || view === 'campaign-edit');
+  fitAll(); // textareas can't measure scrollHeight while hidden — fit once the view is visible
 }
+
+// Grow a textarea to fit its content (capped, then it scrolls). Manual resize still works;
+// it just re-fits on the next keystroke.
+function autosize(el) {
+  if (!el || el.tagName !== 'TEXTAREA') return;
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight + 2, 600) + 'px';
+}
+function fitAll() {
+  requestAnimationFrame(() => document.querySelectorAll('textarea').forEach(autosize));
+}
+// Auto-fit any textarea as the user types or pastes (delegated, covers dynamic step editors).
+document.addEventListener('input', (e) => { if (e.target.tagName === 'TEXTAREA') autosize(e.target); });
 function photoUrl(p) {
   return p && p.photo_path ? `/media/${p.photo_path}`
     : 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36"><rect width="36" height="36" fill="%231f2430"/></svg>');
@@ -216,7 +230,9 @@ function stepCard(s) {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ person_id: person.id, step_id: s.id, provider }),
       });
-      el.querySelector('[data-f="customized_text"]').value = d.text;
+      const ta = el.querySelector('[data-f="customized_text"]');
+      ta.value = d.text;
+      autosize(ta); // programmatic set fires no 'input' event
       toast(`Drafted (${d.provider})`);
     } catch (e) { toast(e.message); }
     finally { btn.textContent = prev; btn.disabled = false; }

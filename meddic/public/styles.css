@@ -102,7 +102,7 @@ select, input[type="text"], input[type="number"], input[type="date"], textarea {
   font: inherit; color: var(--text); background: var(--panel-2); border: 1px solid var(--border);
   border-radius: 6px; padding: 7px 10px;
 }
-textarea { width: 100%; resize: vertical; min-height: 90px; line-height: 1.5; white-space: pre-wrap; }
+textarea { width: 100%; resize: vertical; min-height: 56px; line-height: 1.5; white-space: pre-wrap; overflow-y: auto; }
 
 .toolbar { display: flex; gap: 8px; align-items: center; margin-bottom: 16px; flex-wrap: wrap; }
 .toolbar label { color: var(--muted); }
