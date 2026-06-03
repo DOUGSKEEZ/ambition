@@ -158,8 +158,13 @@ button.dirty { background: var(--warn); border-color: var(--warn); color: #2a1d0
 .dirty-hint { margin-left: 10px; font-size: 12px; color: var(--warn); }
 
 .campaign-steps { margin-top: 12px; }
-.cstep { display: grid; grid-template-columns: 32px 110px 1fr 70px auto; gap: 8px; align-items: start; padding: 8px 0; border-top: 1px solid var(--border); }
+.cstep { display: grid; grid-template-columns: 32px 110px 1fr 84px 150px; gap: 8px; align-items: start; padding: 8px 0; border-top: 1px solid var(--border); }
 .cstep textarea { min-height: 48px; }
+/* Column labels above the step rows so "#" and the delay field are self-explanatory. */
+.cstep-head { padding: 0 0 2px; border-top: none; align-items: end; }
+.cstep-head span { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .04em; }
+/* Center the Wait-days and Actions labels over their columns (delay input + button stack). */
+.cstep-head span:nth-child(4), .cstep-head span:nth-child(5) { text-align: center; }
 .step-actions { display: flex; flex-direction: column; gap: 6px; align-items: stretch; }
 .queue-note { color: var(--muted); margin: -6px 0 14px; }
 .flex { display: flex; gap: 8px; align-items: center; }

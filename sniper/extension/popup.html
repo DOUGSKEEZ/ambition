@@ -6,7 +6,8 @@
     body { width: 280px; font-family: system-ui, sans-serif; padding: 12px; margin: 0; background: #181b22; color: #e6e8ec; }
     h1 { font-size: 15px; margin: 0 0 12px; }
     label { display: block; font-size: 12px; color: #9aa3b2; margin: 10px 0 4px; }
-    select, input { width: 100%; box-sizing: border-box; padding: 6px 8px; background: #1f2430; color: #e6e8ec; border: 1px solid #2a2f3a; border-radius: 6px; font: inherit; }
+    select, input, textarea { width: 100%; box-sizing: border-box; padding: 6px 8px; background: #1f2430; color: #e6e8ec; border: 1px solid #2a2f3a; border-radius: 6px; font: inherit; }
+    textarea { resize: vertical; min-height: 52px; }
     button { width: 100%; margin-top: 14px; padding: 9px; background: #4f8cff; color: #fff; border: none; border-radius: 6px; font: inherit; cursor: pointer; }
     button:disabled { opacity: .6; cursor: default; }
     #status { font-size: 12px; margin-top: 10px; min-height: 16px; }
@@ -29,10 +30,13 @@
   <label for="priority">Priority (optional)</label>
   <select id="priority">
     <option value="">—</option>
-    <option value="1">1</option>
-    <option value="2">2</option>
-    <option value="3">3</option>
+    <option value="1">High</option>
+    <option value="2">Medium</option>
+    <option value="3">Low</option>
   </select>
+
+  <label for="notes">Notes (optional)</label>
+  <textarea id="notes" rows="3" placeholder="Quick notes as you import…"></textarea>
 
   <button id="capture">Capture this profile</button>
   <div id="status"></div>

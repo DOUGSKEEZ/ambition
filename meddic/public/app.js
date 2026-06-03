@@ -213,12 +213,19 @@ function stepCard(s) {
   };
 
   el.querySelector('.save-step').onclick = async () => {
+    const payload = collect();
     try {
       await api(`/person-campaign-steps/${s.id}`, {
-        method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(collect()),
+        method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
       });
-      toast('Step saved');
       await openPerson(person.id); // refresh (side-effects may have moved next_action_date)
+      // Marking a step sent recomputes the contact's due date from the next step's delay —
+      // surface it so the delay field's effect is visible rather than silent.
+      if (payload.sent && person.next_action_date) {
+        toast(`Step saved — next touch due ${fmtDate(person.next_action_date)}`);
+      } else {
+        toast('Step saved');
+      }
     } catch (e) { toast(e.message); }
   };
   el.querySelector('.draft').onclick = async () => {
@@ -316,6 +323,17 @@ function newCampaign() {
 function renderCampaignSteps() {
   const host = $('ce-steps'); host.innerHTML = '';
   if (!editingCampaign.id) { host.innerHTML = '<p class="muted">Save the campaign first, then add steps.</p>'; return; }
+  if (editingCampaign.steps.length) {
+    const head = document.createElement('div');
+    head.className = 'cstep cstep-head';
+    head.innerHTML = `
+      <span title="Step order in the sequence">#</span>
+      <span>Channel</span>
+      <span>Purpose / message</span>
+      <span title="Days to wait after the previous step before this one is due">Wait (days)</span>
+      <span>Actions</span>`;
+    host.appendChild(head);
+  }
   for (const s of editingCampaign.steps) host.appendChild(campaignStepRow(s));
 }
 function campaignStepRow(s) {
@@ -329,7 +347,7 @@ function campaignStepRow(s) {
       <input data-f="purpose" value="${esc(s.purpose)}" placeholder="purpose" style="width:100%;margin-bottom:4px">
       <textarea data-f="skeleton_text" placeholder="skeleton text">${esc(s.skeleton_text)}</textarea>
     </div>
-    <input data-f="default_delay_days" value="${s.default_delay_days ?? ''}" placeholder="delay" title="delay days">
+    <input data-f="default_delay_days" value="${s.default_delay_days ?? ''}" placeholder="days" title="Days to wait after the previous step before this step is due">
     <div class="step-actions">
       <button class="save sm primary" data-clean="Save" data-dirty="Save changes (unsaved)">Save</button>
       <button class="revert sm hidden" title="Discard unsaved edits to this step">Revert</button>

@@ -108,6 +108,7 @@ captureBtn.onclick = async () => {
       type: document.getElementById('type').value,
       priority: document.getElementById('priority').value
         ? Number(document.getElementById('priority').value) : null,
+      my_notes: document.getElementById('notes').value.trim() || null,
       captured_at: new Date().toISOString(),
     };
 

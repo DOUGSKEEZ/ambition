@@ -92,15 +92,15 @@ export async function ingest(payload) {
   // 4. Upsert. ON CONFLICT updates deterministic columns ONLY.
   const sql = `
     INSERT INTO people (
-      linkedin_slug, linkedin_url, company_id, type, priority,
+      linkedin_slug, linkedin_url, company_id, type, priority, my_notes,
       name, title, location, about,
       current_company, current_title, current_tenure, previous_title, previous_company,
       photo_path, ai_summary, ai_ins, raw_html, import_status, captured_at
     ) VALUES (
-      $1, $2, $3, $4, $5,
-      $6, $7, $8, $9,
-      $10, $11, $12, $13, $14,
-      $15, NULL, NULL, $16, 'staged', $17
+      $1, $2, $3, $4, $5, $6,
+      $7, $8, $9, $10,
+      $11, $12, $13, $14, $15,
+      $16, NULL, NULL, $17, 'staged', $18
     )
     ON CONFLICT (linkedin_slug) DO UPDATE SET
       linkedin_url     = EXCLUDED.linkedin_url,
@@ -120,7 +120,7 @@ export async function ingest(payload) {
   `;
 
   const values = [
-    slug, payload.url || null, payload.company_id ?? null, payload.type || null, payload.priority ?? null,
+    slug, payload.url || null, payload.company_id ?? null, payload.type || null, payload.priority ?? null, payload.my_notes ?? null,
     fields.name, fields.title, fields.location, fields.about,
     fields.current_company, fields.current_title, fields.current_tenure, fields.previous_title, fields.previous_company,
     photoPath, rawPath, capturedAt,
