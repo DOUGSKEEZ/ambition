@@ -16,7 +16,7 @@ router.get('/', async (req, res) => {
     if (company_id) { params.push(company_id); companyFilter = `AND p.company_id = $${params.length}`; }
 
     const result = await query(
-      `SELECT p.id, p.name, p.title, p.photo_path, p.hot_cold, p.priority_score,
+      `SELECT p.id, p.name, p.title, p.type, p.photo_path, p.hot_cold, p.priority_score,
               p.next_action_date, p.last_action_at, p.company_id, c.name AS company_name,
               pc.id AS run_id, pc.campaign_id, pc.current_step, cam.name AS campaign_name,
               (p.next_action_date IS NULL OR p.next_action_date <= CURRENT_DATE) AS due,

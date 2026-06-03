@@ -48,6 +48,15 @@ function photoUrl(p) {
     : 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36"><rect width="36" height="36" fill="%231f2430"/></svg>');
 }
 function heatBadge(h) { return h ? `<span class="badge ${h}">${h}</span>` : ''; }
+function typeBadge(t) { return t ? `<span class="badge ${t}">${t.replace('_', ' ')}</span>` : ''; }
+
+// Format a date (or ISO timestamp) as "Jun 01". Returns '' for blank.
+function fmtDate(d) {
+  if (!d) return '';
+  const dt = new Date(d.length <= 10 ? `${d}T00:00:00` : d);
+  if (isNaN(dt)) return d;
+  return dt.toLocaleDateString('en-US', { month: 'short', day: '2-digit' });
+}
 
 // ---------- bootstrap ----------
 async function loadCompanies() {
@@ -79,11 +88,12 @@ async function loadToday() {
     tr.innerHTML = `
       <td><img class="thumb" src="${photoUrl(r)}"></td>
       <td>${esc(r.name)} ${r.going_cold ? '<span class="badge cooling">cooling</span>' : ''}</td>
+      <td>${typeBadge(r.type)}</td>
       <td>${esc(r.campaign_name) || '<span class="muted">unassigned</span>'}</td>
       <td>${next}</td>
       <td>${r.priority_score ?? ''}</td>
       <td>${heatBadge(r.hot_cold)}</td>
-      <td class="muted">${r.next_action_date || 'now'}</td>`;
+      <td class="muted">${fmtDate(r.next_action_date) || 'now'}</td>`;
     tr.onclick = () => openPerson(r.id);
     body.appendChild(tr);
   }
@@ -102,12 +112,13 @@ async function loadRoster() {
     tr.innerHTML = `
       <td><img class="thumb" src="${photoUrl(r)}"></td>
       <td>${esc(r.name)}</td>
+      <td>${typeBadge(r.type)}</td>
       <td>${esc(r.title)}</td>
       <td>${esc(r.campaign_name) || '<span class="muted">—</span>'}</td>
       <td>${r.current_step ? 'step ' + r.current_step : ''}</td>
       <td>${r.priority_score ?? ''}</td>
       <td>${heatBadge(r.hot_cold)}</td>
-      <td class="muted">${r.next_action_date || ''}</td>`;
+      <td class="muted">${fmtDate(r.next_action_date)}</td>`;
     tr.onclick = () => openPerson(r.id);
     body.appendChild(tr);
   }

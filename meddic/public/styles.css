@@ -119,6 +119,9 @@ tbody tr:hover { background: var(--panel-2); }
 .badge.warm { color: var(--warn); border-color: var(--warn); }
 .badge.cold { color: var(--cold); border-color: var(--cold); }
 .badge.cooling { color: var(--warn); border-color: var(--warn); background: rgba(241,196,15,.08); }
+.badge.recruiter { color: #ffd479; }
+.badge.peer { color: #7fd4ff; }
+.badge.hiring_manager { color: #b69cff; }
 .pill { font-size: 11px; color: var(--muted); }
 
 .empty { color: var(--muted); padding: 40px; text-align: center; }
