@@ -292,8 +292,8 @@ async function loadCampaigns() {
   const body = $('campaigns-body'); body.innerHTML = '';
   for (const c of campaigns) {
     const tr = document.createElement('tr');
-    tr.innerHTML = `<td>${esc(c.name)}</td><td>${esc(c.category)}</td><td class="muted">${esc(c.goal)}</td><td>${c.step_count}</td><td><button class="sm">Edit</button></td>`;
-    tr.querySelector('button').onclick = () => editCampaign(c.id);
+    tr.innerHTML = `<td>${esc(c.name)}</td><td>${esc(c.category)}</td><td class="muted">${esc(c.goal)}</td><td>${c.step_count}</td>`;
+    tr.onclick = () => editCampaign(c.id);
     body.appendChild(tr);
   }
 }
