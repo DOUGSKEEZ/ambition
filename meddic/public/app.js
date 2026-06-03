@@ -304,12 +304,14 @@ async function editCampaign(id) {
   $('ce-goal').value = editingCampaign.goal || '';
   renderCampaignSteps();
   show('campaign-edit');
+  headerClean();
 }
 function newCampaign() {
   editingCampaign = { id: null, name: '', category: '', goal: '', steps: [] };
   $('ce-name').value = ''; $('ce-category').value = ''; $('ce-goal').value = '';
   renderCampaignSteps();
   show('campaign-edit');
+  headerClean();
 }
 function renderCampaignSteps() {
   const host = $('ce-steps'); host.innerHTML = '';
@@ -319,6 +321,7 @@ function renderCampaignSteps() {
 function campaignStepRow(s) {
   const el = document.createElement('div');
   el.className = 'cstep';
+  el.dataset.stepId = s.id;
   el.innerHTML = `
     <input data-f="step_order" value="${esc(s.step_order)}" title="order">
     <input data-f="channel" value="${esc(s.channel)}" placeholder="channel">
@@ -327,35 +330,90 @@ function campaignStepRow(s) {
       <textarea data-f="skeleton_text" placeholder="skeleton text">${esc(s.skeleton_text)}</textarea>
     </div>
     <input data-f="default_delay_days" value="${s.default_delay_days ?? ''}" placeholder="delay" title="delay days">
-    <div class="flex"><button class="save sm primary">Save</button><button class="del sm bad">✕</button></div>`;
-  const collect = () => {
+    <div class="step-actions">
+      <button class="save sm primary" data-clean="Save" data-dirty="Save changes (unsaved)">Save</button>
+      <button class="revert sm hidden" title="Discard unsaved edits to this step">Revert</button>
+      <button class="del sm bad" title="Delete this step">Delete Step</button>
+    </div>`;
+
+  const saveBtn = el.querySelector('.save');
+  const revertBtn = el.querySelector('.revert');
+  const fields = [...el.querySelectorAll('[data-f]')];
+  // Snapshot of the last-saved values, used by Revert and to clear the dirty flag.
+  const snapshot = () => Object.fromEntries(fields.map((i) => [i.dataset.f, i.value]));
+  let saved = snapshot();
+
+  const markDirty = () => { dirtyBtn(saveBtn, true); revertBtn.classList.remove('hidden'); };
+  const markClean = () => { dirtyBtn(saveBtn, false); revertBtn.classList.add('hidden'); };
+
+  fields.forEach((i) => i.addEventListener('input', markDirty));
+
+  // Save THIS step in place — no full re-render, so unsaved edits in other rows survive.
+  saveBtn.onclick = async () => {
     const o = {};
-    el.querySelectorAll('[data-f]').forEach((i) => { o[i.dataset.f] = i.value === '' ? null : i.value; });
-    return o;
-  };
-  el.querySelector('.save').onclick = async () => {
+    fields.forEach((i) => { o[i.dataset.f] = i.value === '' ? null : i.value; });
     try {
-      await api(`/campaigns/${editingCampaign.id}/steps/${s.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(collect()) });
-      toast('Step saved'); await editCampaign(editingCampaign.id);
+      await api(`/campaigns/${editingCampaign.id}/steps/${s.id}`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(o),
+      });
+      saved = snapshot();   // new baseline
+      markClean();
+      autosize(el.querySelector('textarea'));
+      toast('Step saved');
     } catch (e) { toast(e.message); }
   };
+
+  // Revert: restore this step's fields to the last-saved values, clear dirty.
+  revertBtn.onclick = () => {
+    fields.forEach((i) => { i.value = saved[i.dataset.f]; });
+    autosize(el.querySelector('textarea'));
+    markClean();
+  };
+
   el.querySelector('.del').onclick = async () => {
+    if (!confirm('Delete this step?')) return;
     try { await api(`/campaigns/${editingCampaign.id}/steps/${s.id}`, { method: 'DELETE' }); await editCampaign(editingCampaign.id); }
     catch (e) { toast(e.message); }
   };
   return el;
 }
+
+// A Save button doubles as its own unsaved-edits indicator: when dirty it turns amber
+// and its label flips to the "dirty" text. Labels are read from data-attributes.
+function dirtyBtn(btn, on) {
+  if (!btn) return;
+  btn.classList.toggle('dirty', on);
+  btn.textContent = on ? (btn.dataset.dirty || 'Save changes (unsaved)') : (btn.dataset.clean || 'Save');
+}
+
+// "Save campaign" saves the header fields (name / category / goal) only.
 async function saveCampaign() {
   const body = { name: $('ce-name').value, category: $('ce-category').value, goal: $('ce-goal').value };
   if (!body.name.trim()) return toast('Name required');
-  if (editingCampaign.id) {
-    await api(`/campaigns/${editingCampaign.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-    toast('Campaign saved'); await editCampaign(editingCampaign.id);
-  } else {
+
+  if (!editingCampaign.id) {
+    // New campaign: create it first (steps are added afterward via "+ Add step").
     const c = await api('/campaigns', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-    toast('Campaign created'); await editCampaign(c.id);
+    toast('Campaign created');
+    return editCampaign(c.id);
   }
+  await api(`/campaigns/${editingCampaign.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  editingCampaign = { ...editingCampaign, ...body };
+  headerClean();
+  toast('Campaign saved');
 }
+
+// Header section dirty/clean + revert (baseline is editingCampaign's saved values).
+function headerDirty() { dirtyBtn($('ce-save'), true); $('ce-revert').classList.remove('hidden'); }
+function headerClean() { dirtyBtn($('ce-save'), false); $('ce-revert').classList.add('hidden'); }
+function revertCampaignHeader() {
+  $('ce-name').value = editingCampaign.name || '';
+  $('ce-category').value = editingCampaign.category || '';
+  $('ce-goal').value = editingCampaign.goal || '';
+  headerClean();
+}
+['ce-name', 'ce-category', 'ce-goal'].forEach((id) => $(id).addEventListener('input', headerDirty));
+$('ce-revert').onclick = revertCampaignHeader;
 async function addCampaignStep() {
   if (!editingCampaign.id) return toast('Save the campaign first');
   await api(`/campaigns/${editingCampaign.id}/steps`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ channel: 'linkedin', purpose: '', skeleton_text: '' }) });
