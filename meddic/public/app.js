@@ -144,6 +144,12 @@ async function openPerson(id) {
   $('p-photo').src = photoUrl(person);
   $('p-name').textContent = person.name || '';
   $('p-subtitle').textContent = [person.title, person.company_name].filter(Boolean).join(' · ');
+  const li = $('p-linkedin');
+  if (person.linkedin_url) { li.href = person.linkedin_url; li.classList.remove('hidden'); }
+  else { li.removeAttribute('href'); li.classList.add('hidden'); }
+  // Deep link into Sniper (shared people table → same id) to view the full enriched profile.
+  $('p-sniper').href = `${location.protocol}//${location.hostname}:7700/?person=${person.id}`;
+  $('p-sniper').classList.remove('hidden');
   $('p-hot_cold').value = person.hot_cold || '';
   $('p-priority_score').value = person.priority_score ?? '';
   $('p-next_action_date').value = person.next_action_date ? person.next_action_date.slice(0, 10) : '';

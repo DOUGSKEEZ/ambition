@@ -45,6 +45,13 @@
           <option value="rejected">rejected</option>
           <option value="">all</option>
         </select>
+        <label for="priority-filter">Priority</label>
+        <select id="priority-filter">
+          <option value="" selected>all</option>
+          <option value="1">1 — High</option>
+          <option value="2">2 — Medium</option>
+          <option value="3">3 — Low</option>
+        </select>
         <button id="refresh-queue">Refresh</button>
         <span class="spacer"></span>
         <span id="bulk-bar" class="hidden">
@@ -54,7 +61,7 @@
       </div>
       <table>
         <thead>
-          <tr><th><input type="checkbox" id="select-all" title="Select all"></th><th></th><th>Name</th><th>Title</th><th>Company</th><th>Type</th><th>Captured</th></tr>
+          <tr><th><input type="checkbox" id="select-all" title="Select all"></th><th></th><th>Priority</th><th>Name</th><th>Title</th><th>Company</th><th>Type</th><th>Captured</th></tr>
         </thead>
         <tbody id="queue-body"></tbody>
       </table>
@@ -110,6 +117,11 @@
             <div class="field"><label>Previous title</label><input id="f-previous_title" /></div>
             <div class="field"><label>Previous company</label><input id="f-previous_company" /></div>
           </div>
+          <div class="note-block">
+            <h3>My notes</h3>
+            <textarea id="f-my_notes"></textarea>
+          </div>
+
           <div class="field"><label>About</label><textarea id="f-about"></textarea></div>
 
           <div class="note-block">
@@ -119,10 +131,6 @@
           <div class="note-block">
             <h3>AI ins (type-specific)</h3>
             <textarea id="f-ai_ins"></textarea>
-          </div>
-          <div class="note-block">
-            <h3>My notes</h3>
-            <textarea id="f-my_notes"></textarea>
           </div>
 
           <div class="actions">

@@ -48,7 +48,21 @@ function show(view) {
   }
   $('tab-queue').classList.toggle('active', view === 'queue');
   $('tab-companies').classList.toggle('active', view === 'companies');
+  fitAll(); // textareas can't measure scrollHeight while hidden — fit once the view is visible
 }
+
+// Grow a textarea to fit its content (capped, then it scrolls). Manual resize via the
+// handle still works; it just re-fits on the next keystroke.
+function autosize(el) {
+  if (!el || el.tagName !== 'TEXTAREA') return;
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight + 2, 600) + 'px';
+}
+function fitAll() {
+  requestAnimationFrame(() => document.querySelectorAll('textarea').forEach(autosize));
+}
+// Auto-fit any textarea as the user types or pastes.
+document.addEventListener('input', (e) => { if (e.target.tagName === 'TEXTAREA') autosize(e.target); });
 
 function photoUrl(p) {
   return p.photo_path ? `/media/${p.photo_path}` : 'data:image/svg+xml;utf8,' +
@@ -56,10 +70,21 @@ function photoUrl(p) {
 }
 
 // ---------- Queue ----------
+const PRIORITY_LABEL = { 1: 'High', 2: 'Medium', 3: 'Low' };
+function priorityCell(p) {
+  if (p.priority == null) return '<span class="muted">—</span>';
+  return `<span class="badge p${p.priority}">${p.priority} · ${PRIORITY_LABEL[p.priority] || ''}</span>`;
+}
+
 async function loadQueue() {
   const status = $('status-filter').value;
+  const priority = $('priority-filter').value;
   const qs = status ? `?import_status=${encodeURIComponent(status)}` : '';
-  const rows = await api(`/people${qs}`);
+  let rows = await api(`/people${qs}`);
+  // Optionally narrow to a single priority, then float high-priority (1) to the top
+  // while preserving the server's captured-at ordering within each priority bucket.
+  if (priority) rows = rows.filter((p) => p.priority === Number(priority));
+  rows.sort((a, b) => (a.priority ?? 99) - (b.priority ?? 99));
   const body = $('queue-body');
   body.innerHTML = '';
   $('queue-empty').classList.toggle('hidden', rows.length > 0);
@@ -70,6 +95,7 @@ async function loadQueue() {
     tr.innerHTML = `
       <td><input type="checkbox" class="row-check" value="${p.id}" ${active ? 'disabled title="active contacts cannot be deleted"' : ''}></td>
       <td><img class="thumb" src="${photoUrl(p)}" alt=""></td>
+      <td>${priorityCell(p)}</td>
       <td>${esc(p.name)}</td>
       <td>${esc(p.title)}</td>
       <td>${esc(p.company_name)}</td>
@@ -164,6 +190,7 @@ async function regenerate() {
   current = await api(`/people/${current.id}/regenerate`, { method: 'POST' });
   $('f-ai_summary').value = current.ai_summary ?? '';
   $('f-ai_ins').value = current.ai_ins ?? '';
+  autosize($('f-ai_summary')); autosize($('f-ai_ins')); // programmatic set fires no 'input' event
   toast('AI notes regenerated');
 }
 
@@ -259,6 +286,7 @@ $('tab-queue').onclick = () => { show('queue'); loadQueue(); };
 $('tab-companies').onclick = () => { show('companies'); loadCompanies(); };
 $('refresh-queue').onclick = loadQueue;
 $('status-filter').onchange = loadQueue;
+$('priority-filter').onchange = loadQueue;
 $('select-all').onchange = (e) => {
   document.querySelectorAll('.row-check:not(:disabled)').forEach((c) => { c.checked = e.target.checked; });
   updateBulkBar();
@@ -279,4 +307,7 @@ $('c-cancel').onclick = cancelEditCompany;
 (async () => {
   await loadCompanies().catch(() => {});
   await loadQueue().catch((e) => toast(e.message));
+  // Deep link: /?person=<id> opens that contact's detail directly (e.g. from meddic).
+  const wanted = Number(new URLSearchParams(location.search).get('person'));
+  if (wanted) await openDetail(wanted).catch((e) => toast(e.message));
 })();

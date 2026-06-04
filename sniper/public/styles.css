@@ -80,7 +80,8 @@ button.good { background: var(--good); border-color: var(--good); color: #04220f
 button.bad { background: var(--bad); border-color: var(--bad); color: #2a0805; }
 button.active { background: var(--accent); border-color: var(--accent); color: #fff; }
 
-main { padding: 20px; max-width: 1100px; margin: 0 auto; }
+/* Use the full monitor (capped so it doesn't get absurd on ultrawides). */
+main { padding: 20px; max-width: 1600px; margin: 0 auto; }
 
 .toolbar { display: flex; gap: 8px; align-items: center; margin-bottom: 16px; }
 .toolbar label { color: var(--muted); }
@@ -94,7 +95,7 @@ select, input[type="text"], input[type="number"], textarea {
   border-radius: 6px;
   padding: 7px 10px;
 }
-textarea { width: 100%; resize: vertical; min-height: 70px; line-height: 1.5; white-space: pre-wrap; }
+textarea { width: 100%; resize: vertical; min-height: 70px; line-height: 1.5; white-space: pre-wrap; overflow-y: auto; }
 .note-block textarea { min-height: 130px; }
 
 table { width: 100%; border-collapse: collapse; background: var(--panel); border-radius: 8px; overflow: hidden; }
@@ -109,6 +110,9 @@ tbody tr:hover { background: var(--panel-2); }
 .badge.recruiter { color: #ffd479; }
 .badge.peer { color: #7fd4ff; }
 .badge.hiring_manager { color: #b69cff; }
+.badge.p1 { color: #ff8a8a; border-color: #ff8a8a; font-weight: 600; }
+.badge.p2 { color: #ffd479; }
+.badge.p3 { color: var(--muted); }
 
 /* Detail / edit view */
 .detail { display: grid; grid-template-columns: 240px 1fr; gap: 24px; }
