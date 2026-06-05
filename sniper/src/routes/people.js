@@ -27,7 +27,7 @@ function deletePersonFiles(person) {
 
 // Columns the review UI is allowed to PATCH.
 const EDITABLE = new Set([
-  'name', 'title', 'location', 'about',
+  'name', 'title', 'location', 'email', 'about',
   'current_company', 'current_title', 'current_tenure', 'previous_title', 'previous_company',
   'ai_summary', 'ai_ins', 'my_notes',
   'type', 'company_id', 'priority',
@@ -130,7 +130,8 @@ function statusRoute(status) {
 }
 router.post('/:id/approve', statusRoute('active'));
 router.post('/:id/reject', statusRoute('rejected'));
-router.post('/:id/restage', statusRoute('staged')); // recover a rejected/active contact
+router.post('/:id/restage', statusRoute('staged')); // recover a rejected/active/cold-storage contact
+router.post('/:id/cold-storage', statusRoute('cold_storage')); // park an off-target contact on ice
 
 // POST /people/bulk-delete  { ids: [..] } — permanently delete contacts + their files.
 // Refuses 'active' contacts (deleting one would cascade-wipe its meddic outreach history);

@@ -42,6 +42,7 @@
         <select id="status-filter">
           <option value="staged" selected>staged</option>
           <option value="active">active</option>
+          <option value="cold_storage">cold storage ❄️</option>
           <option value="rejected">rejected</option>
           <option value="">all</option>
         </select>
@@ -92,6 +93,10 @@
             <div class="field"><label>Priority</label><input id="f-priority" type="number" min="1" max="3" /></div>
           </div>
           <div class="row2">
+            <div class="field"><label>Email</label><input id="f-email" type="email" placeholder="name@company.com" /></div>
+            <div class="field"><label>&nbsp;</label><span></span></div>
+          </div>
+          <div class="row2">
             <div class="field">
               <label>Target company (your list)</label>
               <select id="f-company_id"></select>
@@ -138,6 +143,7 @@
             <button id="d-regenerate">Regenerate AI notes</button>
             <span class="spacer"></span>
             <button id="d-restage" class="hidden">Re-stage</button>
+            <button id="d-cold-storage">❄️ Cold Storage</button>
             <button id="d-delete" class="bad hidden">Delete</button>
             <button id="d-approve" class="good">Approve →</button>
             <button id="d-reject" class="bad">Reject</button>

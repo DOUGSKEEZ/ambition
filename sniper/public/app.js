@@ -28,7 +28,7 @@ let current = null; // person being edited
 let editingCompanyId = null; // company being edited (null = adding)
 
 const EDIT_FIELDS = [
-  'name', 'title', 'location', 'priority', 'company_id', 'type',
+  'name', 'title', 'location', 'email', 'priority', 'company_id', 'type',
   'current_title', 'current_company', 'current_tenure',
   'previous_title', 'previous_company', 'about',
   'ai_summary', 'ai_ins', 'my_notes',
@@ -148,6 +148,8 @@ async function openDetail(id) {
   // Show "Re-stage" only when this contact isn't currently staged (e.g. rejected/active),
   // so a rejected contact can be pulled back into the queue.
   $('d-restage').classList.toggle('hidden', current.import_status === 'staged');
+  // Hide "Cold Storage" when the contact is already parked there.
+  $('d-cold-storage').classList.toggle('hidden', current.import_status === 'cold_storage');
   // Delete is offered for any non-active contact (active would cascade-wipe outreach history).
   $('d-delete').classList.toggle('hidden', current.import_status === 'active');
   show('detail');
@@ -197,7 +199,7 @@ async function regenerate() {
 async function transition(action) {
   await saveEdits();
   await api(`/people/${current.id}/${action}`, { method: 'POST' });
-  toast({ approve: 'Approved', reject: 'Rejected', restage: 'Re-staged' }[action] || 'Updated');
+  toast({ approve: 'Approved', reject: 'Rejected', restage: 'Re-staged', 'cold-storage': 'Moved to Cold Storage ❄️' }[action] || 'Updated');
   show('queue');
   loadQueue();
 }
@@ -298,6 +300,7 @@ $('d-regenerate').onclick = () => regenerate().catch((e) => toast(e.message));
 $('d-approve').onclick = () => transition('approve').catch((e) => toast(e.message));
 $('d-reject').onclick = () => transition('reject').catch((e) => toast(e.message));
 $('d-restage').onclick = () => transition('restage').catch((e) => toast(e.message));
+$('d-cold-storage').onclick = () => transition('cold-storage').catch((e) => toast(e.message));
 $('d-delete').onclick = () => deleteCurrent().catch((e) => toast(e.message));
 $('d-photo-upload').onclick = () => uploadPhoto().catch((e) => toast(e.message));
 $('c-add').onclick = () => submitCompany().catch((e) => toast(e.message));

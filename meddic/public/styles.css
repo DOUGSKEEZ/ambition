@@ -144,6 +144,10 @@ a.back { color: var(--accent); cursor: pointer; text-decoration: none; }
 .li-link { display: flex; align-items: center; gap: 7px; width: fit-content; color: var(--accent); text-decoration: none; font-size: 13px; font-weight: 500; }
 .li-link:hover { text-decoration: underline; }
 .li-ico { width: 16px; height: 16px; flex: 0 0 auto; }
+th.sortable { cursor: pointer; user-select: none; white-space: nowrap; }
+th.sortable:hover { color: var(--accent); }
+th.sortable.active { color: var(--accent); }
+th.sortable .arrow { font-size: 10px; }
 .cols { display: grid; grid-template-columns: 320px 1fr; gap: 24px; align-items: start; }
 .card { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 14px; margin-bottom: 14px; }
 .card h3 { margin: 0 0 10px; font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }

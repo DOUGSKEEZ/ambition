@@ -114,11 +114,53 @@ async function loadToday() {
 }
 
 // ---------- Roster ----------
+// Click a column header to sort by it; click the active one again to flip direction.
+// Default: priority high → low (matches the server's default order).
+let rosterSort = { by: 'priority', dir: 'desc' };
+const SORT_VALUE = {
+  priority: (r) => r.priority_score,
+  next_action: (r) => (r.next_action_date ? r.next_action_date.slice(0, 10) : null),
+  step: (r) => r.current_step,
+};
+// The direction a column starts in the first time you click it.
+const SORT_DEFAULT_DIR = { priority: 'desc', next_action: 'asc', step: 'asc' };
+
+// Reorder rows in place by the active column. Missing values always sink to the
+// bottom regardless of direction (no priority/date/campaign = nothing to surface).
+function sortRoster(rows) {
+  const getVal = SORT_VALUE[rosterSort.by];
+  if (!getVal) return;
+  const sign = rosterSort.dir === 'asc' ? 1 : -1;
+  rows.sort((a, b) => {
+    const va = getVal(a), vb = getVal(b);
+    if (va == null && vb == null) return 0;
+    if (va == null) return 1;
+    if (vb == null) return -1;
+    return sign * (va < vb ? -1 : va > vb ? 1 : 0);
+  });
+}
+
+function setRosterSort(by) {
+  if (rosterSort.by === by) rosterSort.dir = rosterSort.dir === 'asc' ? 'desc' : 'asc';
+  else rosterSort = { by, dir: SORT_DEFAULT_DIR[by] };
+  loadRoster();
+}
+
+function updateSortArrows() {
+  document.querySelectorAll('#view-roster th.sortable').forEach((th) => {
+    const active = th.dataset.sort === rosterSort.by;
+    th.classList.toggle('active', active);
+    th.querySelector('.arrow').textContent = active ? (rosterSort.dir === 'asc' ? ' ▲' : ' ▼') : '';
+  });
+}
+
 async function loadRoster() {
   if (!companyId) return;
   const status = $('roster-status').value;
   const qs = `company_id=${companyId}` + (status ? `&status=${status}` : '');
   const rows = await api(`/people?${qs}`);
+  sortRoster(rows);
+  updateSortArrows();
   const body = $('roster-body'); body.innerHTML = '';
   $('roster-empty').classList.toggle('hidden', rows.length > 0);
   for (const r of rows) {
@@ -150,6 +192,10 @@ async function openPerson(id) {
   // Deep link into Sniper (shared people table → same id) to view the full enriched profile.
   $('p-sniper').href = `${location.protocol}//${location.hostname}:7700/?person=${person.id}`;
   $('p-sniper').classList.remove('hidden');
+  // Email (entered in Sniper) shown as a click-to-compose mailto, hidden when absent.
+  const em = $('p-email');
+  if (person.email) { em.href = `mailto:${person.email}`; $('p-email-text').textContent = person.email; em.classList.remove('hidden'); }
+  else { em.removeAttribute('href'); em.classList.add('hidden'); }
   $('p-hot_cold').value = person.hot_cold || '';
   $('p-priority_score').value = person.priority_score ?? '';
   $('p-next_action_date').value = person.next_action_date ? person.next_action_date.slice(0, 10) : '';
@@ -458,6 +504,9 @@ $('company').onchange = (e) => { companyId = Number(e.target.value); loadToday()
 $('refresh-today').onclick = loadToday;
 $('refresh-roster').onclick = loadRoster;
 $('roster-status').onchange = loadRoster;
+document.querySelectorAll('#view-roster th.sortable').forEach((th) => {
+  th.onclick = () => setRosterSort(th.dataset.sort);
+});
 $('back-from-person').onclick = () => { show('today'); loadToday(); };
 $('p-save-tracker').onclick = () => saveTracker().catch((e) => toast(e.message));
 $('p-save-notes').onclick = () => saveNotes().catch((e) => toast(e.message));
