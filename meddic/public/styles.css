@@ -123,6 +123,12 @@ tbody tr:hover { background: var(--panel-2); }
 .badge.peer { color: #7fd4ff; }
 .badge.hiring_manager { color: #b69cff; }
 .pill { font-size: 11px; color: var(--muted); }
+.nick { display: inline-block; margin-left: 6px; padding: 1px 7px; border-radius: 999px; font-size: 11px; font-weight: 600; color: var(--accent); background: color-mix(in srgb, var(--accent) 15%, transparent); border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent); vertical-align: middle; cursor: text; }
+.nick:hover { background: color-mix(in srgb, var(--accent) 25%, transparent); }
+/* Empty-state affordance: faint until the row is hovered, so unlabelled rows stay quiet. */
+.nick.add { color: var(--muted); font-weight: 500; background: transparent; border-style: dashed; border-color: var(--border); opacity: 0; }
+tr:hover .nick.add { opacity: 1; }
+.nick-input { margin-left: 6px; width: 130px; padding: 1px 6px; font-size: 11px; border-radius: 999px; border: 1px solid var(--accent); background: var(--panel); color: var(--text); vertical-align: middle; }
 
 .empty { color: var(--muted); padding: 40px; text-align: center; }
 .muted { color: var(--muted); }

@@ -17,7 +17,7 @@ router.get('/', async (req, res) => {
 
     const result = await query(
       `SELECT p.id, p.name, p.title, p.type, p.photo_path, p.hot_cold, p.priority_score,
-              p.next_action_date, p.last_action_at, p.company_id, c.name AS company_name,
+              p.label, p.next_action_date, p.last_action_at, p.company_id, c.name AS company_name,
               pc.id AS run_id, pc.campaign_id, pc.current_step, cam.name AS campaign_name,
               (p.next_action_date IS NULL OR p.next_action_date <= CURRENT_DATE) AS due,
               (p.last_action_at IS NOT NULL AND p.last_action_at < (NOW() - ($1 || ' days')::interval)) AS going_cold,

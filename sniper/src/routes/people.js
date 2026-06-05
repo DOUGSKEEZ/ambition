@@ -27,7 +27,7 @@ function deletePersonFiles(person) {
 
 // Columns the review UI is allowed to PATCH.
 const EDITABLE = new Set([
-  'name', 'title', 'location', 'email', 'about',
+  'name', 'title', 'location', 'email', 'label', 'about',
   'current_company', 'current_title', 'current_tenure', 'previous_title', 'previous_company',
   'ai_summary', 'ai_ins', 'my_notes',
   'type', 'company_id', 'priority',

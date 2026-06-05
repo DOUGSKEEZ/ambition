@@ -64,6 +64,45 @@ function photoUrl(p) {
 function heatBadge(h) { return h ? `<span class="badge ${h}">${h}</span>` : ''; }
 function typeBadge(t) { return t ? `<span class="badge ${t}">${t.replace('_', ' ')}</span>` : ''; }
 
+// Inline label/nickname editor for the roster + today tables. Returns a chip; clicking
+// it swaps in an input that PUTs the label on Enter/blur (Escape cancels). Empty labels
+// show a faint "+ label" affordance that appears on row hover.
+function makeNick(id, value) {
+  const span = document.createElement('span');
+  span.className = value ? 'nick' : 'nick add';
+  span.textContent = value || '+ label';
+  span.title = 'Click to edit label';
+  span.onclick = (e) => { e.stopPropagation(); editNick(span, id, value); };
+  return span;
+}
+function editNick(span, id, value) {
+  const input = document.createElement('input');
+  input.className = 'nick-input';
+  input.value = value;
+  input.maxLength = 60;
+  input.placeholder = 'label…';
+  input.onclick = (e) => e.stopPropagation();
+  let done = false;
+  const finish = async (commit) => {
+    if (done) return; done = true;
+    const next = input.value.trim();
+    if (commit && next !== value) {
+      try { await api(`/people/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ label: next || null }) }); toast('Label saved'); }
+      catch (err) { toast(err.message); return input.replaceWith(makeNick(id, value)); }
+      return input.replaceWith(makeNick(id, next));
+    }
+    input.replaceWith(makeNick(id, value));
+  };
+  input.onkeydown = (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); finish(true); }
+    else if (e.key === 'Escape') { e.preventDefault(); finish(false); }
+  };
+  input.onblur = () => finish(true);
+  span.replaceWith(input);
+  input.focus();
+  input.select();
+}
+
 // Format a date (or ISO timestamp) as "Jun 01". Returns '' for blank.
 function fmtDate(d) {
   if (!d) return '';
@@ -101,14 +140,15 @@ async function loadToday() {
     const next = r.next_step_purpose ? `[${esc(r.next_step_channel || '')}] ${esc(r.next_step_purpose)}` : '<span class="muted">— no steps —</span>';
     tr.innerHTML = `
       <td><img class="thumb" src="${photoUrl(r)}"></td>
-      <td>${esc(r.name)} ${r.going_cold ? '<span class="badge cooling">cooling</span>' : ''}</td>
+      <td class="name-cell">${esc(r.name)} ${r.going_cold ? '<span class="badge cooling">cooling</span>' : ''}</td>
       <td>${typeBadge(r.type)}</td>
       <td>${esc(r.campaign_name) || '<span class="muted">unassigned</span>'}</td>
       <td>${next}</td>
       <td>${r.priority_score ?? ''}</td>
       <td>${heatBadge(r.hot_cold)}</td>
       <td class="muted">${fmtDate(r.next_action_date) || 'now'}</td>`;
-    tr.onclick = () => openPerson(r.id);
+    tr.onclick = (e) => { if (!e.target.closest('.nick, .nick-input')) openPerson(r.id); };
+    tr.querySelector('.name-cell').appendChild(makeNick(r.id, r.label || ''));
     body.appendChild(tr);
   }
 }
@@ -167,7 +207,7 @@ async function loadRoster() {
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td><img class="thumb" src="${photoUrl(r)}"></td>
-      <td>${esc(r.name)}</td>
+      <td class="name-cell">${esc(r.name)} </td>
       <td>${typeBadge(r.type)}</td>
       <td>${esc(r.title)}</td>
       <td>${esc(r.campaign_name) || '<span class="muted">—</span>'}</td>
@@ -175,7 +215,8 @@ async function loadRoster() {
       <td>${r.priority_score ?? ''}</td>
       <td>${heatBadge(r.hot_cold)}</td>
       <td class="muted">${fmtDate(r.next_action_date)}</td>`;
-    tr.onclick = () => openPerson(r.id);
+    tr.onclick = (e) => { if (!e.target.closest('.nick, .nick-input')) openPerson(r.id); };
+    tr.querySelector('.name-cell').appendChild(makeNick(r.id, r.label || ''));
     body.appendChild(tr);
   }
 }
@@ -196,6 +237,7 @@ async function openPerson(id) {
   const em = $('p-email');
   if (person.email) { em.href = `mailto:${person.email}`; $('p-email-text').textContent = person.email; em.classList.remove('hidden'); }
   else { em.removeAttribute('href'); em.classList.add('hidden'); }
+  $('p-label').value = person.label || '';
   $('p-hot_cold').value = person.hot_cold || '';
   $('p-priority_score').value = person.priority_score ?? '';
   $('p-next_action_date').value = person.next_action_date ? person.next_action_date.slice(0, 10) : '';
@@ -301,6 +343,7 @@ function stepCard(s) {
 
 async function saveTracker() {
   const body = {
+    label: $('p-label').value.trim() || null,
     hot_cold: $('p-hot_cold').value || null,
     priority_score: $('p-priority_score').value === '' ? null : Number($('p-priority_score').value),
     next_action_date: $('p-next_action_date').value || null,

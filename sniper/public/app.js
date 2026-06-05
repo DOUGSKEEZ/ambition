@@ -28,7 +28,7 @@ let current = null; // person being edited
 let editingCompanyId = null; // company being edited (null = adding)
 
 const EDIT_FIELDS = [
-  'name', 'title', 'location', 'email', 'priority', 'company_id', 'type',
+  'name', 'title', 'location', 'email', 'label', 'priority', 'company_id', 'type',
   'current_title', 'current_company', 'current_tenure',
   'previous_title', 'previous_company', 'about',
   'ai_summary', 'ai_ins', 'my_notes',
@@ -69,6 +69,45 @@ function photoUrl(p) {
     encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40"><rect width="40" height="40" fill="%231f2430"/></svg>');
 }
 
+// ---------- Inline label/nickname editor (used in the queue table) ----------
+// Returns a chip element; clicking it swaps in an input that PATCHes the label on
+// Enter/blur (Escape cancels). Empty labels show a faint "+ label" affordance.
+function makeNick(id, value) {
+  const span = document.createElement('span');
+  span.className = value ? 'nick' : 'nick add';
+  span.textContent = value || '+ label';
+  span.title = 'Click to edit label';
+  span.onclick = (e) => { e.stopPropagation(); editNick(span, id, value); };
+  return span;
+}
+function editNick(span, id, value) {
+  const input = document.createElement('input');
+  input.className = 'nick-input';
+  input.value = value;
+  input.maxLength = 60;
+  input.placeholder = 'label…';
+  input.onclick = (e) => e.stopPropagation();
+  let done = false;
+  const finish = async (commit) => {
+    if (done) return; done = true;
+    const next = input.value.trim();
+    if (commit && next !== value) {
+      try { await api(`/people/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ label: next || null }) }); toast('Label saved'); }
+      catch (err) { toast(err.message); return input.replaceWith(makeNick(id, value)); }
+      return input.replaceWith(makeNick(id, next));
+    }
+    input.replaceWith(makeNick(id, value)); // unchanged or cancelled
+  };
+  input.onkeydown = (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); finish(true); }
+    else if (e.key === 'Escape') { e.preventDefault(); finish(false); }
+  };
+  input.onblur = () => finish(true);
+  span.replaceWith(input);
+  input.focus();
+  input.select();
+}
+
 // ---------- Queue ----------
 const PRIORITY_LABEL = { 1: 'High', 2: 'Medium', 3: 'Low' };
 function priorityCell(p) {
@@ -96,14 +135,15 @@ async function loadQueue() {
       <td><input type="checkbox" class="row-check" value="${p.id}" ${active ? 'disabled title="active contacts cannot be deleted"' : ''}></td>
       <td><img class="thumb" src="${photoUrl(p)}" alt=""></td>
       <td>${priorityCell(p)}</td>
-      <td>${esc(p.name)}</td>
+      <td class="name-cell">${esc(p.name)} </td>
       <td>${esc(p.title)}</td>
       <td>${esc(p.company_name)}</td>
       <td>${p.type ? `<span class="badge ${p.type}">${p.type}</span>` : ''}</td>
       <td class="muted">${p.captured_at ? new Date(p.captured_at).toLocaleString() : ''}</td>`;
-    // Open detail on row click, except when the click is on the checkbox cell.
-    tr.onclick = (e) => { if (!e.target.closest('.row-check')) openDetail(p.id); };
+    // Open detail on row click, except on the checkbox or the inline label editor.
+    tr.onclick = (e) => { if (!e.target.closest('.row-check, .nick, .nick-input')) openDetail(p.id); };
     tr.querySelector('.row-check').onchange = updateBulkBar;
+    tr.querySelector('.name-cell').appendChild(makeNick(p.id, p.label || ''));
     body.appendChild(tr);
   }
   updateBulkBar();
