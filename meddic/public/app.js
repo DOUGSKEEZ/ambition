@@ -130,7 +130,9 @@ async function loadCampaignList() { campaigns = await api('/campaigns'); }
 // ---------- Today ----------
 async function loadToday() {
   if (!companyId) return;
-  const rows = await api(`/queue?company_id=${companyId}`);
+  let rows = await api(`/queue?company_id=${companyId}`);
+  const type = $('today-type').value;
+  if (type) rows = rows.filter((r) => r.type === type);
   const body = $('today-body'); body.innerHTML = '';
   $('today-empty').classList.toggle('hidden', rows.length > 0);
   const cooling = rows.filter((r) => r.going_cold).length;
@@ -198,7 +200,9 @@ async function loadRoster() {
   if (!companyId) return;
   const status = $('roster-status').value;
   const qs = `company_id=${companyId}` + (status ? `&status=${status}` : '');
-  const rows = await api(`/people?${qs}`);
+  let rows = await api(`/people?${qs}`);
+  const type = $('roster-type').value;
+  if (type) rows = rows.filter((r) => r.type === type);
   sortRoster(rows);
   updateSortArrows();
   const body = $('roster-body'); body.innerHTML = '';
@@ -546,7 +550,9 @@ $('tab-campaigns').onclick = () => { show('campaigns'); loadCampaigns(); };
 $('company').onchange = (e) => { companyId = Number(e.target.value); loadToday(); };
 $('refresh-today').onclick = loadToday;
 $('refresh-roster').onclick = loadRoster;
+$('today-type').onchange = loadToday;
 $('roster-status').onchange = loadRoster;
+$('roster-type').onchange = loadRoster;
 document.querySelectorAll('#view-roster th.sortable').forEach((th) => {
   th.onclick = () => setRosterSort(th.dataset.sort);
 });

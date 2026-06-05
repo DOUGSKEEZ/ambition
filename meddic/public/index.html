@@ -47,6 +47,13 @@
     <section id="view-today">
       <div class="toolbar">
         <strong>Today's touches</strong>
+        <label for="today-type">type</label>
+        <select id="today-type">
+          <option value="" selected>all</option>
+          <option value="recruiter">recruiter</option>
+          <option value="peer">peer</option>
+          <option value="hiring_manager">hiring manager</option>
+        </select>
         <span class="spacer"></span>
         <button id="refresh-today" class="sm">Refresh</button>
       </div>
@@ -67,6 +74,13 @@
           <option value="active" selected>active</option>
           <option value="inactive">inactive</option>
           <option value="">all</option>
+        </select>
+        <label for="roster-type">type</label>
+        <select id="roster-type">
+          <option value="" selected>all</option>
+          <option value="recruiter">recruiter</option>
+          <option value="peer">peer</option>
+          <option value="hiring_manager">hiring manager</option>
         </select>
         <span class="spacer"></span>
         <button id="refresh-roster" class="sm">Refresh</button>
