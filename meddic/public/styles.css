@@ -119,9 +119,9 @@ tbody tr:hover { background: var(--panel-2); }
 .badge.warm { color: var(--warn); border-color: var(--warn); }
 .badge.cold { color: var(--cold); border-color: var(--cold); }
 .badge.cooling { color: var(--warn); border-color: var(--warn); background: rgba(241,196,15,.08); }
-.badge.recruiter { color: #ffd479; }
-.badge.peer { color: #7fd4ff; }
-.badge.hiring_manager { color: #b69cff; }
+.badge.recruiter { color: #34c759; border-color: #34c759; }
+.badge.peer { color: #4f8cff; border-color: #4f8cff; }
+.badge.hiring_manager { color: #ff5c5c; border-color: #ff5c5c; }
 .pill { font-size: 11px; color: var(--muted); }
 .nick { display: inline-block; margin-left: 6px; padding: 1px 7px; border-radius: 999px; font-size: 11px; font-weight: 600; color: var(--accent); background: color-mix(in srgb, var(--accent) 15%, transparent); border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent); vertical-align: middle; cursor: text; }
 .nick:hover { background: color-mix(in srgb, var(--accent) 25%, transparent); }
@@ -183,3 +183,52 @@ button.dirty { background: var(--warn); border-color: var(--warn); color: #2a1d0
 .queue-note { color: var(--muted); margin: -6px 0 14px; }
 .flex { display: flex; gap: 8px; align-items: center; }
 .wrap { flex-wrap: wrap; }
+
+/* ---- Drafting prompt editor (modal) ---- */
+.modal-backdrop {
+  position: fixed; inset: 0; z-index: 100;
+  display: flex; align-items: flex-start; justify-content: center;
+  background: rgba(0, 0, 0, .55);
+  padding: 28px 18px; overflow-y: auto;
+}
+.modal {
+  background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+  width: 100%; max-width: min(1500px, 96vw); padding: 18px 22px 24px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, .45);
+}
+.modal-head { display: flex; align-items: center; gap: 12px; }
+.modal-head h2 { margin: 0; font-size: 18px; flex: 1; }
+.modal-intro { margin: 6px 0 18px; font-size: 13px; }
+
+/* Two columns: high-leverage sections on the left, collapsed guardrails on the right. */
+.pm-cols { display: grid; grid-template-columns: 3fr 2fr; gap: 26px; align-items: start; }
+.pm-col { min-width: 0; }
+.pm-col-title {
+  margin: 0 0 6px; font-size: 12px; text-transform: uppercase; letter-spacing: .05em;
+  color: var(--muted); font-weight: 600;
+}
+@media (max-width: 900px) { .pm-cols { grid-template-columns: 1fr; gap: 8px; } }
+
+.pm-section { border-top: 1px solid var(--border); padding: 14px 0; }
+.pm-section:first-of-type { border-top: none; }
+.pm-section-head { display: flex; align-items: center; gap: 8px; margin-bottom: 2px; }
+.pm-label { font-weight: 600; }
+.pm-badge {
+  font-size: 11px; text-transform: uppercase; letter-spacing: .04em;
+  color: var(--muted); border: 1px solid var(--border); border-radius: 10px; padding: 1px 8px;
+}
+.pm-badge.custom { color: var(--accent); border-color: var(--accent); }
+.pm-help { margin: 4px 0 8px; font-size: 12px; }
+.pm-actions { display: flex; align-items: center; gap: 8px; margin: 8px 0 6px; }
+.pm-body {
+  min-height: 60px; resize: none; overflow-y: hidden;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12.5px; line-height: 1.5;
+}
+
+/* Collapsed (secondary) sections */
+.pm-collapsible > summary {
+  display: flex; align-items: center; gap: 8px; cursor: pointer; list-style-position: inside;
+  padding: 2px 0;
+}
+.pm-collapsible > summary:hover .pm-label { color: var(--accent); }
+.pm-collapsible[open] > summary { margin-bottom: 6px; }

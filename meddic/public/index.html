@@ -165,6 +165,8 @@
               <label class="muted">start at step <input id="p-assign-step" type="number" min="1" value="1" style="width:60px" /></label>
               <button id="p-assign" class="primary sm">Assign / Switch</button>
               <button id="p-assign-bespoke" class="sm">Run bespoke</button>
+              <span class="spacer"></span>
+              <button class="open-prompt sm" title="Edit the instructions Claude uses to draft messages">✎ Drafting prompt</button>
             </div>
             <p class="muted" id="p-run-label" style="margin:10px 0 0"></p>
           </div>
@@ -199,6 +201,7 @@
         <button id="ce-save" class="primary sm" data-clean="Save campaign" data-dirty="Save campaign (unsaved)">Save campaign</button>
         <button id="ce-revert" class="sm hidden" title="Discard unsaved edits to name/category/goal">Revert</button>
         <button id="ce-delete" class="bad sm" style="margin-left:8px">Delete campaign</button>
+        <button class="open-prompt sm" style="margin-left:8px" title="Edit the instructions Claude uses to draft messages">✎ Drafting prompt</button>
       </div>
       <div class="card">
         <h3>Steps</h3>
@@ -207,6 +210,21 @@
       </div>
     </section>
   </main>
+
+  <!-- DRAFTING PROMPT EDITOR (modal) -->
+  <div id="prompt-modal" class="modal-backdrop hidden">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="pm-title">
+      <div class="modal-head">
+        <h2 id="pm-title">Drafting prompt</h2>
+        <button id="pm-close" class="sm" title="Close">✕</button>
+      </div>
+      <p class="muted modal-intro">
+        These sections are sent to the model as the system prompt for every draft, in order. Edit any
+        section and Save; Reset restores the built-in default. Changes apply to all campaigns and contacts.
+      </p>
+      <div id="pm-sections"></div>
+    </div>
+  </div>
 
   <div id="toast" class="toast hidden"></div>
   <script src="app.js"></script>

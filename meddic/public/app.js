@@ -50,7 +50,9 @@ function show(view) {
 function autosize(el) {
   if (!el || el.tagName !== 'TEXTAREA') return;
   el.style.height = 'auto';
-  el.style.height = Math.min(el.scrollHeight + 2, 600) + 'px';
+  // Prompt-editor textareas grow to fit all their text (the modal scrolls, not the box).
+  const cap = el.classList.contains('pm-body') ? Infinity : 600;
+  el.style.height = Math.min(el.scrollHeight + 2, cap) + 'px';
 }
 function fitAll() {
   requestAnimationFrame(() => document.querySelectorAll('textarea').forEach(autosize));
@@ -543,6 +545,104 @@ async function deleteCampaign() {
   toast('Campaign deleted'); show('campaigns'); loadCampaigns();
 }
 
+// ---------- Drafting prompt editor (modal) ----------
+async function openPromptModal() {
+  const host = $('pm-sections');
+  host.innerHTML = '<p class="muted">Loading…</p>';
+  $('prompt-modal').classList.remove('hidden');
+  try {
+    const { sections } = await api('/settings/prompt');
+    host.innerHTML = `
+      <div class="pm-cols">
+        <div class="pm-col">
+          <h3 class="pm-col-title">Core — biggest impact on the message</h3>
+          <div id="pm-primary"></div>
+        </div>
+        <div class="pm-col">
+          <h3 class="pm-col-title">Guardrails &amp; format — usually set once</h3>
+          <div id="pm-secondary"></div>
+        </div>
+      </div>`;
+    const prim = $('pm-primary');
+    const sec = $('pm-secondary');
+    for (const s of sections) (s.primary ? prim : sec).appendChild(promptSectionRow(s, !s.primary));
+    // Fit the expanded (primary) boxes to their content now that they're in the DOM —
+    // a detached textarea reports scrollHeight 0. Collapsed ones fit on expand.
+    requestAnimationFrame(() => prim.querySelectorAll('.pm-body').forEach(autosize));
+  } catch (e) {
+    host.innerHTML = `<p class="muted">Couldn't load prompt: ${esc(e.message)}</p>`;
+  }
+}
+function closePromptModal() { $('prompt-modal').classList.add('hidden'); }
+
+// Build one editable section. `collapsed` renders it as a <details> (used for the
+// secondary column); otherwise it's always expanded (primary column).
+function promptSectionRow(s, collapsed) {
+  const bodyHtml = `
+    <div class="pm-actions">
+      <span class="spacer"></span>
+      <button class="pm-save primary sm">Save</button>
+      <button class="pm-reset sm" title="Restore the built-in default for this section">Reset</button>
+    </div>
+    <p class="pm-help muted"></p>
+    <textarea class="pm-body" spellcheck="false"></textarea>`;
+  let el;
+  if (collapsed) {
+    el = document.createElement('details');
+    el.className = 'pm-section pm-collapsible';
+    el.innerHTML = `<summary><span class="pm-label"></span><span class="pm-badge"></span></summary>${bodyHtml}`;
+  } else {
+    el = document.createElement('div');
+    el.className = 'pm-section';
+    el.innerHTML = `<div class="pm-section-head"><span class="pm-label"></span><span class="pm-badge"></span></div>${bodyHtml}`;
+  }
+  el.querySelector('.pm-label').textContent = s.label;
+  el.querySelector('.pm-help').textContent = s.help || '';
+  const ta = el.querySelector('.pm-body');
+  ta.value = s.effective || '';
+  ta.addEventListener('input', () => autosize(ta));
+  // A textarea has no measurable height while detached or inside a closed <details>.
+  // Collapsed sections fit on expand; expanded ones are fit by the caller after append.
+  if (collapsed) el.addEventListener('toggle', () => { if (el.open) autosize(ta); });
+
+  const badge = el.querySelector('.pm-badge');
+  const setBadge = (overridden) => {
+    badge.textContent = overridden ? 'custom' : 'default';
+    badge.classList.toggle('custom', overridden);
+  };
+  setBadge(s.overridden);
+
+  el.querySelector('.pm-save').onclick = async () => {
+    const btn = el.querySelector('.pm-save'); const prev = btn.textContent;
+    btn.disabled = true; btn.textContent = 'Saving…';
+    try {
+      const r = await api(`/settings/prompt/${s.key}`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ body: ta.value }),
+      });
+      ta.value = r.effective || '';
+      autosize(ta);
+      setBadge(r.overridden);
+      toast(r.overridden ? `Saved "${s.label}"` : `"${s.label}" reset to default (was blank)`);
+    } catch (e) { toast(e.message); }
+    finally { btn.disabled = false; btn.textContent = prev; }
+  };
+  el.querySelector('.pm-reset').onclick = async () => {
+    if (!confirm(`Reset "${s.label}" to the built-in default? Your edits to this section will be discarded.`)) return;
+    try {
+      const r = await api(`/settings/prompt/${s.key}`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ body: '' }),
+      });
+      ta.value = r.effective || '';
+      autosize(ta);
+      setBadge(false);
+      toast(`"${s.label}" reset to default`);
+    } catch (e) { toast(e.message); }
+  };
+  return el;
+}
+
 // ---------- wire up ----------
 $('tab-today').onclick = () => { show('today'); loadToday(); };
 $('tab-roster').onclick = () => { show('roster'); loadRoster(); };
@@ -570,6 +670,10 @@ $('back-from-campaign').onclick = () => { show('campaigns'); loadCampaigns(); };
 $('ce-save').onclick = () => saveCampaign().catch((e) => toast(e.message));
 $('ce-delete').onclick = () => deleteCampaign().catch((e) => toast(e.message));
 $('ce-add-step').onclick = () => addCampaignStep().catch((e) => toast(e.message));
+document.querySelectorAll('.open-prompt').forEach((b) => { b.onclick = openPromptModal; });
+$('pm-close').onclick = closePromptModal;
+$('prompt-modal').addEventListener('click', (e) => { if (e.target.id === 'prompt-modal') closePromptModal(); });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('prompt-modal').classList.contains('hidden')) closePromptModal(); });
 
 // ---------- boot ----------
 (async () => {

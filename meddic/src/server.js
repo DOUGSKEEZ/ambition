@@ -9,6 +9,7 @@ import peopleRouter from './routes/people.js';
 import runsRouter from './routes/runs.js';
 import queueRouter from './routes/queue.js';
 import draftRouter from './routes/draft.js';
+import settingsRouter from './routes/settings.js';
 
 const ROOT = resolve(import.meta.dirname, '..');
 const PORT = process.env.PORT || 7701;
@@ -23,6 +24,7 @@ app.use('/campaigns', campaignsRouter);
 app.use('/people', peopleRouter);
 app.use('/queue', queueRouter);
 app.use('/draft', draftRouter);
+app.use('/settings', settingsRouter);
 app.use(runsRouter); // absolute paths: /person-campaigns/*, /person-campaign-steps/*
 
 // Serve Sniper's media (same host) so contact photos render — no cross-origin, no hardcoded port.
