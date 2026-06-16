@@ -272,15 +272,22 @@ function renderRun() {
   }
   label.innerHTML = `Active run: <strong>${esc(run.campaign_name) || 'bespoke'}</strong> · current step ${run.current_step}`;
   stepsHost.innerHTML = '';
-  for (const s of run.steps) stepsHost.appendChild(stepCard(s));
+  run.steps.forEach((s, i) => stepsHost.appendChild(stepCard(s, i, run.steps)));
+  // Re-renders (e.g. reorder) rebuild the cards; fit the message boxes to their
+  // content now that they're in the DOM, so they don't collapse to the minimum.
+  requestAnimationFrame(() => stepsHost.querySelectorAll('textarea').forEach(autosize));
 }
 
-function stepCard(s) {
+function stepCard(s, idx, steps) {
   const el = document.createElement('div');
   el.className = 'step' + (s.sent ? ' sent' : '');
   el.innerHTML = `
     <div class="step-head">
       <span class="num">${s.step_order}</span>
+      <span class="step-move">
+        <button class="move-up sm" title="Move earlier" ${idx === 0 ? 'disabled' : ''}>▲</button>
+        <button class="move-down sm" title="Move later" ${idx === steps.length - 1 ? 'disabled' : ''}>▼</button>
+      </span>
       <input data-f="channel" value="${esc(s.channel)}" placeholder="channel" style="width:120px">
       <input data-f="purpose" value="${esc(s.purpose)}" placeholder="purpose" style="flex:1">
     </div>
@@ -344,6 +351,25 @@ function stepCard(s) {
     } catch (e) { toast(e.message); }
     finally { btn.textContent = prev; btn.disabled = false; }
   };
+  // Reorder: swap this step with its neighbour and renumber the run server-side.
+  // Note: like Save/Send, this re-renders the steps — save any in-progress draft first.
+  const move = async (delta) => {
+    const to = idx + delta;
+    if (to < 0 || to >= steps.length) return;
+    const order = steps.map((x) => x.id);
+    [order[idx], order[to]] = [order[to], order[idx]];
+    try {
+      const updated = await api(`/person-campaigns/${person.active_run.id}/reorder`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ order }),
+      });
+      person.active_run.steps = updated;
+      renderRun();
+      toast('Step reordered');
+    } catch (e) { toast(e.message); }
+  };
+  el.querySelector('.move-up').onclick = () => move(-1);
+  el.querySelector('.move-down').onclick = () => move(1);
   return el;
 }
 

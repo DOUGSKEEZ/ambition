@@ -109,6 +109,46 @@ router.post('/person-campaign-steps', async (req, res) => {
   }
 });
 
+// POST /person-campaigns/:id/reorder  { order: [stepId, ...] }
+// Renumber a run's steps to the given id order (step_order = 1..N). The order array
+// must list exactly this run's step ids. Atomic; returns the steps in the new order.
+router.post('/person-campaigns/:id/reorder', async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const runId = Number(req.params.id);
+    const order = Array.isArray(req.body?.order) ? req.body.order.map(Number) : null;
+    if (!order || !order.length) return res.status(400).json({ error: 'order (array of step ids) required' });
+
+    await client.query('BEGIN');
+    const existing = await client.query(
+      'SELECT id FROM person_campaign_steps WHERE person_campaign_id = $1', [runId]
+    );
+    const ids = new Set(existing.rows.map((r) => r.id));
+    const sameSet = order.length === ids.size && order.every((id) => ids.has(id));
+    if (!sameSet) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: "order must list exactly this run's step ids" });
+    }
+    for (let i = 0; i < order.length; i++) {
+      await client.query(
+        'UPDATE person_campaign_steps SET step_order = $2 WHERE id = $1 AND person_campaign_id = $3',
+        [order[i], i + 1, runId]
+      );
+    }
+    const rows = await client.query(
+      'SELECT * FROM person_campaign_steps WHERE person_campaign_id = $1 ORDER BY step_order', [runId]
+    );
+    await client.query('COMMIT');
+    res.json(rows.rows);
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
+    console.error('[POST /person-campaigns/:id/reorder]', err);
+    res.status(500).json({ error: err.message });
+  } finally {
+    client.release();
+  }
+});
+
 // PUT /person-campaign-steps/:id — edit customized_text / channel / purpose / send + response tracking.
 // sent_at is ALWAYS taken from the client (manually editable, never inferred). Marking sent also
 // advances the run's current_step and bumps the person's last_action_at + suggests next_action_date.

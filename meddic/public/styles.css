@@ -232,3 +232,8 @@ button.dirty { background: var(--warn); border-color: var(--warn); color: #2a1d0
 }
 .pm-collapsible > summary:hover .pm-label { color: var(--accent); }
 .pm-collapsible[open] > summary { margin-bottom: 6px; }
+
+/* Step reorder arrows (contact campaign run) */
+.step-move { display: inline-flex; gap: 2px; }
+.step-move button { padding: 2px 7px; line-height: 1; font-size: 11px; }
+.step-move button:disabled { opacity: .35; cursor: default; }
