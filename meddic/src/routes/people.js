@@ -7,7 +7,7 @@ const router = Router();
 // Doug field; ai_summary/ai_ins are Sniper-owned enrichment that Doug can override from
 // here (they heavily drive drafting; Sniper recapture preserves them, so edits survive).
 const TRACKER_FIELDS = new Set([
-  'status', 'hot_cold', 'priority_score', 'next_action_date', 'last_action_at',
+  'status', 'hot_cold', 'emoji', 'next_action_date', 'last_action_at',
   'my_notes', 'ai_summary', 'ai_ins', 'label',
 ]);
 
@@ -32,8 +32,7 @@ router.get('/', async (req, res) => {
        LEFT JOIN person_campaigns pc ON pc.person_id = p.id AND pc.status = 'active'
        LEFT JOIN campaigns cam ON cam.id = pc.campaign_id
        WHERE ${where.join(' AND ')}
-       ORDER BY p.priority_score DESC NULLS LAST,
-                CASE p.hot_cold WHEN 'hot' THEN 0 WHEN 'warm' THEN 1 WHEN 'cold' THEN 2 ELSE 3 END,
+       ORDER BY CASE p.hot_cold WHEN 'hot' THEN 0 WHEN 'warm' THEN 1 WHEN 'cold' THEN 2 ELSE 3 END,
                 p.name`,
       params
     );

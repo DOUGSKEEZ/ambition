@@ -129,6 +129,11 @@ tbody tr:hover { background: var(--panel-2); }
 .nick.add { color: var(--muted); font-weight: 500; background: transparent; border-style: dashed; border-color: var(--border); opacity: 0; }
 tr:hover .nick.add { opacity: 1; }
 .nick-input { margin-left: 6px; width: 130px; padding: 1px 6px; font-size: 11px; border-radius: 999px; border: 1px solid var(--accent); background: var(--panel); color: var(--text); vertical-align: middle; }
+/* Freeform emoji "marker" chip (replaces the old 0–100 priority). */
+.emoji-chip { cursor: pointer; font-size: 16px; line-height: 1; vertical-align: middle; white-space: nowrap; }
+.emoji-chip.add { font-size: 13px; color: var(--muted); opacity: 0; }
+tr:hover .emoji-chip.add { opacity: .6; }
+.emoji-input { width: 92px; padding: 1px 6px; font-size: 15px; border-radius: 6px; border: 1px solid var(--accent); background: var(--panel); color: var(--text); vertical-align: middle; }
 
 .empty { color: var(--muted); padding: 40px; text-align: center; }
 .muted { color: var(--muted); }
@@ -181,6 +186,9 @@ button.dirty { background: var(--warn); border-color: var(--warn); color: #2a1d0
 .cstep-head span:nth-child(4), .cstep-head span:nth-child(5) { text-align: center; }
 .step-actions { display: flex; flex-direction: column; gap: 6px; align-items: stretch; }
 .queue-note { color: var(--muted); margin: -6px 0 14px; }
+/* "Done today" recap sits below the work queue with a clear divider. */
+.done-today { margin-top: 32px; padding-top: 20px; border-top: 1px solid var(--border); }
+.na-input { padding: 2px 6px; font-size: 12px; }
 .flex { display: flex; gap: 8px; align-items: center; }
 .wrap { flex-wrap: wrap; }
 

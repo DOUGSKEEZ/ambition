@@ -35,14 +35,24 @@ function toast(msg) {
   const t = $('toast'); t.textContent = msg; t.classList.remove('hidden');
   clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.add('hidden'), 2600);
 }
+let currentView = 'today';
 function show(view) {
-  for (const v of ['today', 'roster', 'person', 'campaigns', 'campaign-edit']) {
+  currentView = view;
+  for (const v of ['today', 'tomorrow', 'roster', 'person', 'campaigns', 'campaign-edit']) {
     $(`view-${v}`).classList.toggle('hidden', v !== view);
   }
   $('tab-today').classList.toggle('active', view === 'today');
+  $('tab-tomorrow').classList.toggle('active', view === 'tomorrow');
   $('tab-roster').classList.toggle('active', view === 'roster');
   $('tab-campaigns').classList.toggle('active', view === 'campaigns' || view === 'campaign-edit');
   fitAll(); // textareas can't measure scrollHeight while hidden — fit once the view is visible
+}
+// Reload whichever list view is currently showing (used by the global company picker).
+function reloadCurrent() {
+  if (currentView === 'today') loadToday();
+  else if (currentView === 'tomorrow') loadWeek();
+  else if (currentView === 'roster') loadRoster();
+  else if (currentView === 'campaigns') loadCampaigns();
 }
 
 // Grow a textarea to fit its content (capped, then it scrolls). Manual resize still works;
@@ -105,6 +115,47 @@ function editNick(span, id, value) {
   input.select();
 }
 
+// Inline emoji "marker" editor — the freeform replacement for the old 0–100 priority.
+// Mirrors makeNick: a chip you click to swap in an input that PUTs `emoji` on Enter/blur.
+function makeEmoji(id, value) {
+  const span = document.createElement('span');
+  span.className = value ? 'emoji-chip' : 'emoji-chip add';
+  span.textContent = value || '＋';
+  span.title = 'Click to set an emoji marker (urgency, vibe, anything)';
+  span.onclick = (e) => { e.stopPropagation(); editEmoji(span, id, value); };
+  return span;
+}
+function editEmoji(span, id, value) {
+  const input = document.createElement('input');
+  input.className = 'emoji-input';
+  input.value = value;
+  input.maxLength = 20; // a handful of emoji incl. ZWJ/flag sequences (UTF-16 units)
+  input.placeholder = '🔥';
+  input.onclick = (e) => e.stopPropagation();
+  let done = false;
+  const finish = async (commit) => {
+    if (done) return; done = true;
+    const next = input.value.trim();
+    if (commit && next !== value) {
+      try { await api(`/people/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ emoji: next || null }) }); toast('Marker saved'); }
+      catch (err) { toast(err.message); return input.replaceWith(makeEmoji(id, value)); }
+      return input.replaceWith(makeEmoji(id, next));
+    }
+    input.replaceWith(makeEmoji(id, value));
+  };
+  input.onkeydown = (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); finish(true); }
+    else if (e.key === 'Escape') { e.preventDefault(); finish(false); }
+  };
+  // Commit only when focus moves to a real element (tabbing/clicking another field).
+  // The OS emoji picker — and app/window switches — blur with a null relatedTarget;
+  // keep the editor open in that case so the picked emoji lands in it. Press Enter to save.
+  input.onblur = (e) => { if (e.relatedTarget) finish(true); };
+  span.replaceWith(input);
+  input.focus();
+  input.select();
+}
+
 // Format a date (or ISO timestamp) as "Jun 01". Returns '' for blank.
 function fmtDate(d) {
   if (!d) return '';
@@ -144,30 +195,107 @@ async function loadToday() {
     const next = r.next_step_purpose ? `[${esc(r.next_step_channel || '')}] ${esc(r.next_step_purpose)}` : '<span class="muted">— no steps —</span>';
     tr.innerHTML = `
       <td><img class="thumb" src="${photoUrl(r)}"></td>
-      <td class="name-cell">${esc(r.name)} ${r.going_cold ? '<span class="badge cooling">cooling</span>' : ''}</td>
+      <td class="emoji-cell"></td>
+      <td class="name-cell">${esc(r.name)} ${heatBadge(r.hot_cold)} ${r.going_cold ? '<span class="badge cooling">cooling</span>' : ''}</td>
       <td>${typeBadge(r.type)}</td>
       <td>${esc(r.campaign_name) || '<span class="muted">unassigned</span>'}</td>
       <td>${next}</td>
-      <td>${r.priority_score ?? ''}</td>
-      <td>${heatBadge(r.hot_cold)}</td>
-      <td class="muted">${fmtDate(r.next_action_date) || 'now'}</td>`;
-    tr.onclick = (e) => { if (!e.target.closest('.nick, .nick-input')) openPerson(r.id); };
-    tr.querySelector('.name-cell').appendChild(makeNick(r.id, r.label || ''));
+      <td class="label-cell"></td>
+      <td class="na-cell"></td>`;
+    tr.onclick = (e) => { if (!e.target.closest('.nick, .nick-input, .na-input, .emoji-chip, .emoji-input')) openPerson(r.id); };
+    tr.querySelector('.emoji-cell').appendChild(makeEmoji(r.id, r.emoji || ''));
+    tr.querySelector('.label-cell').appendChild(makeNick(r.id, r.label || ''));
+    tr.querySelector('.na-cell').appendChild(makeNextAction(r, loadToday));
+    body.appendChild(tr);
+  }
+  loadDone().catch((e) => toast(e.message));
+}
+
+// Recap of outreach already done today: one row per step sent today (newest first).
+async function loadDone() {
+  if (!companyId) return;
+  const rows = await api(`/queue/done?company_id=${companyId}`);
+  const body = $('done-body'); body.innerHTML = '';
+  $('done-empty').classList.toggle('hidden', rows.length > 0);
+  $('done-note').textContent = rows.length ? `${rows.length} sent today` : '';
+  for (const r of rows) {
+    const tr = document.createElement('tr');
+    const step = r.purpose ? `[${esc(r.channel || '')}] ${esc(r.purpose)}` : `<span class="muted">step ${r.step_order}</span>`;
+    tr.innerHTML = `
+      <td><img class="thumb" src="${photoUrl(r)}"></td>
+      <td>${esc(r.name)}</td>
+      <td>${typeBadge(r.type)}</td>
+      <td>${esc(r.campaign_name) || '<span class="muted">bespoke</span>'}</td>
+      <td>${step}</td>
+      <td class="label-cell"></td>
+      <td class="na-cell"></td>`;
+    tr.onclick = (e) => { if (!e.target.closest('.nick, .nick-input, .na-input')) openPerson(r.id); };
+    tr.querySelector('.label-cell').appendChild(makeNick(r.id, r.label || ''));
+    tr.querySelector('.na-cell').appendChild(makeNextAction(r, loadToday));
     body.appendChild(tr);
   }
 }
 
+// ---------- Tomorrow (rest of the work week) ----------
+async function loadWeek() {
+  if (!companyId) return;
+  const { start, end, rows } = await api(`/queue/week?company_id=${companyId}`);
+  const type = $('tomorrow-type').value;
+  const list = type ? rows.filter((r) => r.type === type) : rows;
+  const body = $('tomorrow-body'); body.innerHTML = '';
+  $('tomorrow-empty').classList.toggle('hidden', list.length > 0);
+  $('tomorrow-note').textContent = `${list.length} planned · ${fmtDate(start)}–${fmtDate(end)}`;
+  for (const r of list) {
+    const tr = document.createElement('tr');
+    const next = r.next_step_purpose ? `[${esc(r.next_step_channel || '')}] ${esc(r.next_step_purpose)}` : '<span class="muted">— no steps —</span>';
+    tr.innerHTML = `
+      <td><img class="thumb" src="${photoUrl(r)}"></td>
+      <td class="emoji-cell"></td>
+      <td class="name-cell">${esc(r.name)} </td>
+      <td>${typeBadge(r.type)}</td>
+      <td>${esc(r.campaign_name) || '<span class="muted">unassigned</span>'}</td>
+      <td>${next}</td>
+      <td>${heatBadge(r.hot_cold)}</td>
+      <td class="na-cell"></td>`;
+    tr.onclick = (e) => { if (!e.target.closest('.nick, .nick-input, .na-input, .emoji-chip, .emoji-input')) openPerson(r.id); };
+    tr.querySelector('.name-cell').appendChild(makeNick(r.id, r.label || ''));
+    tr.querySelector('.emoji-cell').appendChild(makeEmoji(r.id, r.emoji || ''));
+    tr.querySelector('.na-cell').appendChild(makeNextAction(r));
+    body.appendChild(tr);
+  }
+}
+
+// Inline date editor for a contact's next action. Saving may move the contact out of the
+// week window (or into the past = onto Today), so we reload (reloadFn) to re-filter.
+function makeNextAction(r, reloadFn = loadWeek) {
+  const input = document.createElement('input');
+  input.type = 'date';
+  input.className = 'na-input';
+  input.value = r.next_action_date ? r.next_action_date.slice(0, 10) : '';
+  input.onclick = (e) => e.stopPropagation();
+  input.onchange = async () => {
+    try {
+      await api(`/people/${r.id}`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ next_action_date: input.value || null }),
+      });
+      toast('Next action updated');
+      reloadFn();
+    } catch (e) { toast(e.message); input.value = r.next_action_date ? r.next_action_date.slice(0, 10) : ''; }
+  };
+  return input;
+}
+
 // ---------- Roster ----------
 // Click a column header to sort by it; click the active one again to flip direction.
-// Default: priority high → low (matches the server's default order).
-let rosterSort = { by: 'priority', dir: 'desc' };
+// Default: no client sort — keep the server's order (heat, then name).
+let rosterSort = { by: null, dir: 'asc' };
 const SORT_VALUE = {
-  priority: (r) => r.priority_score,
   next_action: (r) => (r.next_action_date ? r.next_action_date.slice(0, 10) : null),
   step: (r) => r.current_step,
 };
 // The direction a column starts in the first time you click it.
-const SORT_DEFAULT_DIR = { priority: 'desc', next_action: 'asc', step: 'asc' };
+const SORT_DEFAULT_DIR = { next_action: 'asc', step: 'asc' };
 
 // Reorder rows in place by the active column. Missing values always sink to the
 // bottom regardless of direction (no priority/date/campaign = nothing to surface).
@@ -213,22 +341,27 @@ async function loadRoster() {
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td><img class="thumb" src="${photoUrl(r)}"></td>
+      <td class="emoji-cell"></td>
       <td class="name-cell">${esc(r.name)} </td>
       <td>${typeBadge(r.type)}</td>
       <td>${esc(r.title)}</td>
       <td>${esc(r.campaign_name) || '<span class="muted">—</span>'}</td>
       <td>${r.current_step ? 'step ' + r.current_step : ''}</td>
-      <td>${r.priority_score ?? ''}</td>
       <td>${heatBadge(r.hot_cold)}</td>
       <td class="muted">${fmtDate(r.next_action_date)}</td>`;
-    tr.onclick = (e) => { if (!e.target.closest('.nick, .nick-input')) openPerson(r.id); };
+    tr.onclick = (e) => { if (!e.target.closest('.nick, .nick-input, .emoji-chip, .emoji-input')) openPerson(r.id); };
     tr.querySelector('.name-cell').appendChild(makeNick(r.id, r.label || ''));
+    tr.querySelector('.emoji-cell').appendChild(makeEmoji(r.id, r.emoji || ''));
     body.appendChild(tr);
   }
 }
 
 // ---------- Person detail ----------
+// Remember which list to return to (Back button). Don't overwrite when openPerson is
+// re-called to refresh while already on the detail view.
+let personReturn = 'today';
 async function openPerson(id) {
+  if (currentView !== 'person' && currentView !== 'campaign-edit') personReturn = currentView;
   person = await api(`/people/${id}`);
   $('p-photo').src = photoUrl(person);
   $('p-name').textContent = person.name || '';
@@ -245,7 +378,7 @@ async function openPerson(id) {
   else { em.removeAttribute('href'); em.classList.add('hidden'); }
   $('p-label').value = person.label || '';
   $('p-hot_cold').value = person.hot_cold || '';
-  $('p-priority_score').value = person.priority_score ?? '';
+  $('p-emoji').value = person.emoji || '';
   $('p-next_action_date').value = person.next_action_date ? person.next_action_date.slice(0, 10) : '';
   $('p-status').value = person.status || 'active';
   $('p-ai_summary').value = person.ai_summary || '';
@@ -377,7 +510,7 @@ async function saveTracker() {
   const body = {
     label: $('p-label').value.trim() || null,
     hot_cold: $('p-hot_cold').value || null,
-    priority_score: $('p-priority_score').value === '' ? null : Number($('p-priority_score').value),
+    emoji: $('p-emoji').value.trim() || null,
     next_action_date: $('p-next_action_date').value || null,
     status: $('p-status').value,
   };
@@ -671,18 +804,22 @@ function promptSectionRow(s, collapsed) {
 
 // ---------- wire up ----------
 $('tab-today').onclick = () => { show('today'); loadToday(); };
+$('tab-tomorrow').onclick = () => { show('tomorrow'); loadWeek(); };
 $('tab-roster').onclick = () => { show('roster'); loadRoster(); };
 $('tab-campaigns').onclick = () => { show('campaigns'); loadCampaigns(); };
-$('company').onchange = (e) => { companyId = Number(e.target.value); loadToday(); };
+$('company').onchange = (e) => { companyId = Number(e.target.value); reloadCurrent(); };
 $('refresh-today').onclick = loadToday;
+$('refresh-tomorrow').onclick = loadWeek;
 $('refresh-roster').onclick = loadRoster;
 $('today-type').onchange = loadToday;
+$('tomorrow-type').onchange = loadWeek;
 $('roster-status').onchange = loadRoster;
 $('roster-type').onchange = loadRoster;
 document.querySelectorAll('#view-roster th.sortable').forEach((th) => {
   th.onclick = () => setRosterSort(th.dataset.sort);
 });
-$('back-from-person').onclick = () => { show('today'); loadToday(); };
+$('back-from-person').onclick = () => { show(personReturn); reloadCurrent(); };
+$('p-refresh').onclick = () => { if (person) openPerson(person.id).then(() => toast('Refreshed')).catch((e) => toast(e.message)); };
 $('p-save-tracker').onclick = () => saveTracker().catch((e) => toast(e.message));
 $('p-save-notes').onclick = () => saveNotes().catch((e) => toast(e.message));
 $('p-save-context').onclick = () => saveContext().catch((e) => toast(e.message));

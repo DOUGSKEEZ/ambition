@@ -33,6 +33,7 @@
     <nav class="page-nav">
       <div class="tabs">
         <button id="tab-today" class="active">Today</button>
+        <button id="tab-tomorrow" title="Outreach planned for the rest of this work week">Tomorrow</button>
         <button id="tab-roster">Roster</button>
         <button id="tab-campaigns">Campaigns</button>
       </div>
@@ -59,10 +60,46 @@
       </div>
       <p class="queue-note" id="today-note"></p>
       <table>
-        <thead><tr><th></th><th>Name</th><th>Type</th><th>Campaign</th><th>Next step</th><th>Priority</th><th>Heat</th><th>Due</th></tr></thead>
+        <thead><tr><th></th><th>Marker</th><th>Name</th><th>Type</th><th>Campaign</th><th>Next step</th><th>Label</th><th>Due</th></tr></thead>
         <tbody id="today-body"></tbody>
       </table>
       <div id="today-empty" class="empty hidden">Queue clear — nothing due.</div>
+
+      <!-- Done-today recap: every step marked sent today -->
+      <div class="done-today">
+        <div class="toolbar">
+          <strong>Done today</strong>
+          <span class="spacer"></span>
+          <span class="queue-note" id="done-note"></span>
+        </div>
+        <table>
+          <thead><tr><th></th><th>Name</th><th>Type</th><th>Campaign</th><th>Sent step</th><th>Label</th><th>Next action</th></tr></thead>
+          <tbody id="done-body"></tbody>
+        </table>
+        <div id="done-empty" class="empty hidden">No outreach logged yet today — mark a step <em>sent</em> to see it here.</div>
+      </div>
+    </section>
+
+    <!-- TOMORROW (rest of the work week) -->
+    <section id="view-tomorrow" class="hidden">
+      <div class="toolbar">
+        <strong>Rest of the week</strong>
+        <label for="tomorrow-type">type</label>
+        <select id="tomorrow-type">
+          <option value="" selected>all</option>
+          <option value="recruiter">recruiter</option>
+          <option value="peer">peer</option>
+          <option value="hiring_manager">hiring manager</option>
+        </select>
+        <span class="spacer"></span>
+        <button id="refresh-tomorrow" class="sm">Refresh</button>
+      </div>
+      <p class="queue-note" id="tomorrow-note"></p>
+      <table>
+        <thead><tr><th></th><th>Marker</th><th>Name</th><th>Type</th><th>Campaign</th><th>Next step</th><th>Heat</th><th>Next action</th></tr></thead>
+        <tbody id="tomorrow-body"></tbody>
+      </table>
+      <div id="tomorrow-empty" class="empty hidden">Nothing scheduled for the rest of the week.</div>
     </section>
 
     <!-- ROSTER -->
@@ -86,9 +123,8 @@
         <button id="refresh-roster" class="sm">Refresh</button>
       </div>
       <table>
-        <thead><tr><th></th><th>Name</th><th>Type</th><th>Title</th><th>Campaign</th>
+        <thead><tr><th></th><th>Marker</th><th>Name</th><th>Type</th><th>Title</th><th>Campaign</th>
           <th class="sortable" data-sort="step">Step<span class="arrow"></span></th>
-          <th class="sortable" data-sort="priority">Priority<span class="arrow"></span></th>
           <th>Heat</th>
           <th class="sortable" data-sort="next_action">Next action<span class="arrow"></span></th></tr></thead>
         <tbody id="roster-body"></tbody>
@@ -98,7 +134,7 @@
 
     <!-- PERSON DETAIL -->
     <section id="view-person" class="hidden">
-      <p><a class="back" id="back-from-person">← Back</a></p>
+      <p style="display:flex;align-items:center"><a class="back" id="back-from-person">← Back</a><button id="p-refresh" class="sm" style="margin-left:auto" title="Reload this contact from the database — picks up edits made in Sniper (email, photo, links…)">↻ Refresh</button></p>
       <div class="detail-head">
         <img id="p-photo" alt="" />
         <div>
@@ -129,7 +165,7 @@
               <div class="field"><label>Heat</label>
                 <select id="p-hot_cold"><option value="">—</option><option value="hot">hot</option><option value="warm">warm</option><option value="cold">cold</option></select>
               </div>
-              <div class="field"><label>Priority (0-100)</label><input id="p-priority_score" type="number" min="0" max="100" /></div>
+              <div class="field"><label>Marker (emoji)</label><input id="p-emoji" maxlength="20" placeholder="e.g. 🔥🔥🔥 · 🎯 · 🥶" /></div>
             </div>
             <div class="row2">
               <div class="field"><label>Next action date</label><input id="p-next_action_date" type="date" /></div>
