@@ -171,6 +171,16 @@ async function bulkDelete() {
   await loadQueue();
 }
 
+async function bulkColdStorage() {
+  const ids = selectedIds();
+  if (!ids.length) return;
+  const r = await api('/people/bulk-cold-storage', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids }),
+  });
+  toast(`Moved ${r.updated.length} to Cold Storage ❄️`);
+  await loadQueue();
+}
+
 function esc(s) {
   return s == null ? '' : String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 }
@@ -334,6 +344,7 @@ $('select-all').onchange = (e) => {
   updateBulkBar();
 };
 $('bulk-delete').onclick = () => bulkDelete().catch((err) => toast(err.message));
+$('bulk-cold-storage').onclick = () => bulkColdStorage().catch((err) => toast(err.message));
 $('back-to-queue').onclick = () => { show('queue'); loadQueue(); };
 $('d-save').onclick = () => saveEdits().catch((e) => toast(e.message));
 $('d-regenerate').onclick = () => regenerate().catch((e) => toast(e.message));

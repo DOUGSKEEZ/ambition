@@ -156,6 +156,24 @@ router.post('/bulk-delete', async (req, res) => {
   }
 });
 
+// POST /people/bulk-cold-storage  { ids: [..] } — park many contacts on ice at once
+// (mirror of bulk-delete; the queue only lets non-active rows be selected). Declared
+// before DELETE /:id for the same routing reason.
+router.post('/bulk-cold-storage', async (req, res) => {
+  try {
+    const ids = (req.body?.ids || []).map(Number).filter(Number.isInteger);
+    if (!ids.length) return res.status(400).json({ error: 'no ids provided' });
+    const result = await query(
+      "UPDATE people SET import_status = 'cold_storage' WHERE id = ANY($1) RETURNING id",
+      [ids]
+    );
+    res.json({ updated: result.rows.map((r) => r.id) });
+  } catch (err) {
+    console.error('[POST /people/bulk-cold-storage]', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // DELETE /people/:id — permanently delete one contact + its files. Refuses 'active'.
 router.delete('/:id', async (req, res) => {
   try {

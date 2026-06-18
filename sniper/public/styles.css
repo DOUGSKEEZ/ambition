@@ -107,9 +107,9 @@ tbody tr:hover { background: var(--panel-2); }
 .thumb { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; background: var(--panel-2); }
 
 .badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; background: var(--panel-2); border: 1px solid var(--border); }
-.badge.recruiter { color: #ffd479; }
-.badge.peer { color: #7fd4ff; }
-.badge.hiring_manager { color: #b69cff; }
+.badge.recruiter { color: #34c759; border-color: #34c759; }
+.badge.peer { color: #4f8cff; border-color: #4f8cff; }
+.badge.hiring_manager { color: #ff5c5c; border-color: #ff5c5c; }
 .nick { display: inline-block; margin-left: 6px; padding: 1px 7px; border-radius: 999px; font-size: 11px; font-weight: 600; color: var(--accent); background: color-mix(in srgb, var(--accent) 15%, transparent); border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent); vertical-align: middle; cursor: text; }
 .nick:hover { background: color-mix(in srgb, var(--accent) 25%, transparent); }
 /* Empty-state affordance: faint until hovered, so rows without a label stay quiet. */
