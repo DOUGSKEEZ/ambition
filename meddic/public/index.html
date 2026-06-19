@@ -59,8 +59,8 @@
         <button id="refresh-today" class="sm">Refresh</button>
       </div>
       <p class="queue-note" id="today-note"></p>
-      <table>
-        <thead><tr><th></th><th>Marker</th><th>Name</th><th>Type</th><th>Campaign</th><th>Next step</th><th>Label</th><th>Due</th></tr></thead>
+      <table id="today-table">
+        <thead><tr><th></th><th>Marker</th><th>Name</th><th class="company-col">Company</th><th>Type</th><th>Campaign</th><th>Next step</th><th>Label</th><th>Due</th></tr></thead>
         <tbody id="today-body"></tbody>
       </table>
       <div id="today-empty" class="empty hidden">Queue clear — nothing due.</div>
@@ -72,8 +72,8 @@
           <span class="spacer"></span>
           <span class="queue-note" id="done-note"></span>
         </div>
-        <table>
-          <thead><tr><th></th><th>Name</th><th>Type</th><th>Campaign</th><th>Sent step</th><th>Label</th><th>Next action</th></tr></thead>
+        <table id="done-table">
+          <thead><tr><th></th><th>Name</th><th class="company-col">Company</th><th>Type</th><th>Campaign</th><th>Sent step</th><th>Label</th><th>Next action</th></tr></thead>
           <tbody id="done-body"></tbody>
         </table>
         <div id="done-empty" class="empty hidden">No outreach logged yet today — mark a step <em>sent</em> to see it here.</div>

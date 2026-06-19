@@ -179,6 +179,11 @@ th.sortable .arrow { font-size: 10px; }
 .ch-field { display: flex; align-items: center; gap: 6px; min-width: 0; }
 .ch-field .ch-select { flex: 1; min-width: 0; }
 
+/* Company column: hidden by default, revealed on the Today/Done tables only when the
+   global picker is set to "All companies" (the table gets .show-company). */
+.company-col { display: none; }
+.show-company .company-col { display: table-cell; }
+
 button.dirty { background: var(--warn); border-color: var(--warn); color: #2a1d00; }
 button.sent-today { background: var(--good); border-color: var(--good); color: #06210f; font-weight: 600; }
 .dirty-hint { margin-left: 10px; font-size: 12px; color: var(--warn); }

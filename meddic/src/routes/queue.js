@@ -59,10 +59,11 @@ router.get('/done', async (req, res) => {
     const result = await query(
       `SELECT s.id AS step_id, s.step_order, s.channel, s.purpose, s.sent_at, s.response_received,
               p.id, p.name, p.type, p.photo_path, p.label, p.hot_cold, p.next_action_date,
-              cam.name AS campaign_name
+              c.name AS company_name, cam.name AS campaign_name
        FROM person_campaign_steps s
        JOIN person_campaigns pc ON pc.id = s.person_campaign_id
        JOIN people p ON p.id = pc.person_id
+       JOIN companies c ON c.id = p.company_id
        LEFT JOIN campaigns cam ON cam.id = pc.campaign_id
        WHERE s.sent = TRUE AND s.sent_at::date = CURRENT_DATE
          AND p.import_status = 'active'

@@ -217,12 +217,27 @@ function todayStr() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
+// Query-string fragment for the global company filter, '' when "All companies" is active
+// (the backend list endpoints omit the filter and return every company in that case).
+function companyQS() { return companyId === 'all' ? '' : `company_id=${companyId}`; }
+// Build "/path?a&b" from a base and query fragments, dropping empties. Keeps call sites
+// readable now that the company filter can be blank.
+function withQS(base, ...frags) {
+  const q = frags.filter(Boolean).join('&');
+  return q ? `${base}?${q}` : base;
+}
+
 // ---------- bootstrap ----------
 async function loadCompanies() {
   companies = await api('/companies');
   const sel = $('company');
   sel.innerHTML = '';
   if (!companies.length) { sel.innerHTML = '<option value="">(no companies)</option>'; return; }
+  // "All companies" (value 'all') shows every company's contacts in one list; the list
+  // views reveal a Company column when it's active. Default stays the first company A–Z.
+  const all = document.createElement('option');
+  all.value = 'all'; all.textContent = 'All companies';
+  sel.appendChild(all);
   for (const c of companies) {
     const o = document.createElement('option');
     o.value = c.id; o.textContent = `${c.name} (${c.active_contacts})`;
@@ -236,7 +251,9 @@ async function loadCampaignList() { campaigns = await api('/campaigns'); }
 // ---------- Today ----------
 async function loadToday() {
   if (!companyId) return;
-  let rows = await api(`/queue?company_id=${companyId}`);
+  const showCompany = companyId === 'all';
+  $('today-table').classList.toggle('show-company', showCompany);
+  let rows = await api(withQS('/queue', companyQS()));
   const type = $('today-type').value;
   if (type) rows = rows.filter((r) => r.type === type);
   const body = $('today-body'); body.innerHTML = '';
@@ -250,6 +267,7 @@ async function loadToday() {
       <td><img class="thumb" src="${photoUrl(r)}"></td>
       <td class="emoji-cell"></td>
       <td class="name-cell">${esc(r.name)} ${heatBadge(r.hot_cold)} ${r.going_cold ? '<span class="badge cooling">cooling</span>' : ''}</td>
+      <td class="company-col">${esc(r.company_name) || ''}</td>
       <td>${typeBadge(r.type)}</td>
       <td>${esc(r.campaign_name) || '<span class="muted">unassigned</span>'}</td>
       <td>${next}</td>
@@ -267,7 +285,8 @@ async function loadToday() {
 // Recap of outreach already done today: one row per step sent today (newest first).
 async function loadDone() {
   if (!companyId) return;
-  const rows = await api(`/queue/done?company_id=${companyId}`);
+  $('done-table').classList.toggle('show-company', companyId === 'all');
+  const rows = await api(withQS('/queue/done', companyQS()));
   const body = $('done-body'); body.innerHTML = '';
   $('done-empty').classList.toggle('hidden', rows.length > 0);
   $('done-note').textContent = rows.length ? `${rows.length} sent today` : '';
@@ -277,6 +296,7 @@ async function loadDone() {
     tr.innerHTML = `
       <td><img class="thumb" src="${photoUrl(r)}"></td>
       <td>${esc(r.name)}</td>
+      <td class="company-col">${esc(r.company_name) || ''}</td>
       <td>${typeBadge(r.type)}</td>
       <td>${esc(r.campaign_name) || '<span class="muted">bespoke</span>'}</td>
       <td>${step}</td>
@@ -292,7 +312,7 @@ async function loadDone() {
 // ---------- Tomorrow (rest of the work week) ----------
 async function loadWeek() {
   if (!companyId) return;
-  const { start, end, rows } = await api(`/queue/week?company_id=${companyId}`);
+  const { start, end, rows } = await api(withQS('/queue/week', companyQS()));
   const type = $('tomorrow-type').value;
   const list = type ? rows.filter((r) => r.type === type) : rows;
   const body = $('tomorrow-body'); body.innerHTML = '';
@@ -382,8 +402,7 @@ function updateSortArrows() {
 async function loadRoster() {
   if (!companyId) return;
   const status = $('roster-status').value;
-  const qs = `company_id=${companyId}` + (status ? `&status=${status}` : '');
-  let rows = await api(`/people?${qs}`);
+  let rows = await api(withQS('/people', companyQS(), status ? `status=${status}` : ''));
   const type = $('roster-type').value;
   if (type) rows = rows.filter((r) => r.type === type);
   sortRoster(rows);
@@ -868,7 +887,7 @@ $('tab-today').onclick = () => { show('today'); loadToday(); };
 $('tab-tomorrow').onclick = () => { show('tomorrow'); loadWeek(); };
 $('tab-roster').onclick = () => { show('roster'); loadRoster(); };
 $('tab-campaigns').onclick = () => { show('campaigns'); loadCampaigns(); };
-$('company').onchange = (e) => { companyId = Number(e.target.value); reloadCurrent(); };
+$('company').onchange = (e) => { companyId = e.target.value === 'all' ? 'all' : Number(e.target.value); reloadCurrent(); };
 $('refresh-today').onclick = loadToday;
 $('refresh-tomorrow').onclick = loadWeek;
 $('refresh-roster').onclick = loadRoster;
