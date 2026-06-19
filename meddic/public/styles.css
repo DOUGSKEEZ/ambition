@@ -173,7 +173,14 @@ th.sortable .arrow { font-size: 10px; }
 .step-controls label { display: flex; align-items: center; gap: 5px; color: var(--muted); font-size: 13px; }
 .draft-row { display: flex; gap: 8px; margin-top: 8px; }
 
+/* Outreach channel widget: a live icon + dropdown in the step editors, and a small icon
+   in the read-only lists. Icons are fixed-colour SVGs so they read on both themes. */
+.ch-ico { width: 18px; height: 18px; vertical-align: middle; flex: none; }
+.ch-field { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.ch-field .ch-select { flex: 1; min-width: 0; }
+
 button.dirty { background: var(--warn); border-color: var(--warn); color: #2a1d00; }
+button.sent-today { background: var(--good); border-color: var(--good); color: #06210f; font-weight: 600; }
 .dirty-hint { margin-left: 10px; font-size: 12px; color: var(--warn); }
 
 .campaign-steps { margin-top: 12px; }

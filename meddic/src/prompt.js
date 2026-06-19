@@ -189,7 +189,10 @@ export function assembleSystemPrompt(overrides = {}) {
 // Build the per-recipient user message (the part that changes for every contact/step).
 export function buildUserPrompt({ person, step, goal }) {
   const lines = [];
-  lines.push(`CHANNEL: ${step.channel || 'unspecified'}`);
+  // Canonical channel values are stored snake_case (e.g. voice_memo); spell them out so
+  // the model reads "voice memo" rather than the raw token.
+  const channel = step.channel ? step.channel.replace(/_/g, ' ') : 'unspecified';
+  lines.push(`CHANNEL: ${channel}`);
   if (goal) lines.push(`CAMPAIGN GOAL (the conversion this whole sequence drives toward): ${goal}`);
   if (step.purpose) lines.push(`THIS MESSAGE'S JOB: ${step.purpose}`);
   if (step.customized_text) lines.push(`SKELETON / STARTING INTENT (keep the intent, make it specific and human):\n${step.customized_text}`);

@@ -76,6 +76,52 @@ function photoUrl(p) {
 function heatBadge(h) { return h ? `<span class="badge ${h}">${h}</span>` : ''; }
 function typeBadge(t) { return t ? `<span class="badge ${t}">${t.replace('_', ' ')}</span>` : ''; }
 
+// Canonical outreach channels for campaign steps. `value` is what's stored; each maps to
+// a small SVG in /icons. Order = dropdown order. Legacy/freeform channel strings outside
+// this set still render (as their raw text) and are preserved when editing.
+const CHANNELS = [
+  { value: 'email',      label: 'Email',      icon: 'icons/ch-email.svg' },
+  { value: 'linkedin',   label: 'LinkedIn',   icon: 'icons/ch-linkedin.svg' },
+  { value: 'call',       label: 'Call',       icon: 'icons/ch-call.svg' },
+  { value: 'text',       label: 'Text',       icon: 'icons/ch-text.svg' },
+  { value: 'voice_memo', label: 'Voice Memo', icon: 'icons/ch-voice-memo.svg' },
+  { value: 'video_memo', label: 'Video Memo', icon: 'icons/ch-video-memo.svg' },
+];
+const CHANNEL_BY = Object.fromEntries(CHANNELS.map((c) => [c.value, c]));
+
+// Read-only channel marker for the queue/roster lists: the icon for a known channel,
+// or the bracketed raw text for a legacy/unknown value ('' when blank).
+function channelTag(value) {
+  const c = CHANNEL_BY[value];
+  if (c) return `<img class="ch-ico" src="${c.icon}" title="${c.label}" alt="${c.label}">`;
+  return value ? `[${esc(value)}]` : '';
+}
+
+// Editor widget: a live preview icon + a <select data-f="channel">. Returns HTML; call
+// wireChannels(rootEl) after inserting it so the icon tracks the selection.
+function channelField(value) {
+  const known = CHANNEL_BY[value];
+  const opts = CHANNELS.map((c) => `<option value="${c.value}"${c.value === value ? ' selected' : ''}>${c.label}</option>`);
+  if (value && !known) opts.unshift(`<option value="${esc(value)}" selected>${esc(value)}</option>`);
+  return `<span class="ch-field">
+    <img class="ch-ico ch-preview" src="${known ? known.icon : ''}" alt="">
+    <select data-f="channel" class="ch-select">${opts.join('')}</select>
+  </span>`;
+}
+function wireChannels(root) {
+  root.querySelectorAll('.ch-field').forEach((field) => {
+    const sel = field.querySelector('.ch-select');
+    const img = field.querySelector('.ch-preview');
+    const sync = () => {
+      const c = CHANNEL_BY[sel.value];
+      img.src = c ? c.icon : '';
+      img.style.visibility = c ? 'visible' : 'hidden';
+    };
+    sel.addEventListener('change', sync);
+    sync();
+  });
+}
+
 // Inline label/nickname editor for the roster + today tables. Returns a chip; clicking
 // it swaps in an input that PUTs the label on Enter/blur (Escape cancels). Empty labels
 // show a faint "+ label" affordance that appears on row hover.
@@ -164,6 +210,13 @@ function fmtDate(d) {
   return dt.toLocaleDateString('en-US', { month: 'short', day: '2-digit' });
 }
 
+// Today's date as YYYY-MM-DD in the user's local timezone (not UTC — toISOString would
+// roll over a day near midnight). Matches the <input type="date"> value format.
+function todayStr() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 // ---------- bootstrap ----------
 async function loadCompanies() {
   companies = await api('/companies');
@@ -192,7 +245,7 @@ async function loadToday() {
   $('today-note').textContent = `${rows.length} due${cooling ? ` · ${cooling} going cold` : ''}`;
   for (const r of rows) {
     const tr = document.createElement('tr');
-    const next = r.next_step_purpose ? `[${esc(r.next_step_channel || '')}] ${esc(r.next_step_purpose)}` : '<span class="muted">— no steps —</span>';
+    const next = r.next_step_purpose ? `${channelTag(r.next_step_channel)} ${esc(r.next_step_purpose)}` : '<span class="muted">— no steps —</span>';
     tr.innerHTML = `
       <td><img class="thumb" src="${photoUrl(r)}"></td>
       <td class="emoji-cell"></td>
@@ -220,7 +273,7 @@ async function loadDone() {
   $('done-note').textContent = rows.length ? `${rows.length} sent today` : '';
   for (const r of rows) {
     const tr = document.createElement('tr');
-    const step = r.purpose ? `[${esc(r.channel || '')}] ${esc(r.purpose)}` : `<span class="muted">step ${r.step_order}</span>`;
+    const step = r.purpose ? `${channelTag(r.channel)} ${esc(r.purpose)}` : `<span class="muted">step ${r.step_order}</span>`;
     tr.innerHTML = `
       <td><img class="thumb" src="${photoUrl(r)}"></td>
       <td>${esc(r.name)}</td>
@@ -247,7 +300,7 @@ async function loadWeek() {
   $('tomorrow-note').textContent = `${list.length} planned · ${fmtDate(start)}–${fmtDate(end)}`;
   for (const r of list) {
     const tr = document.createElement('tr');
-    const next = r.next_step_purpose ? `[${esc(r.next_step_channel || '')}] ${esc(r.next_step_purpose)}` : '<span class="muted">— no steps —</span>';
+    const next = r.next_step_purpose ? `${channelTag(r.next_step_channel)} ${esc(r.next_step_purpose)}` : '<span class="muted">— no steps —</span>';
     tr.innerHTML = `
       <td><img class="thumb" src="${photoUrl(r)}"></td>
       <td class="emoji-cell"></td>
@@ -421,7 +474,7 @@ function stepCard(s, idx, steps) {
         <button class="move-up sm" title="Move earlier" ${idx === 0 ? 'disabled' : ''}>▲</button>
         <button class="move-down sm" title="Move later" ${idx === steps.length - 1 ? 'disabled' : ''}>▼</button>
       </span>
-      <input data-f="channel" value="${esc(s.channel)}" placeholder="channel" style="width:120px">
+      ${channelField(s.channel)}
       <input data-f="purpose" value="${esc(s.purpose)}" placeholder="purpose" style="flex:1">
     </div>
     <textarea data-f="customized_text" placeholder="Message text (draft, then edit)…">${esc(s.customized_text)}</textarea>
@@ -436,6 +489,7 @@ function stepCard(s, idx, steps) {
       <button class="save-step primary sm">Save step</button>
     </div>
     <div class="step-controls">
+      ${s.sent ? '' : '<button class="sent-today sm">✓ Sent today</button>'}
       <label><input type="checkbox" data-f="sent" ${s.sent ? 'checked' : ''}> sent</label>
       <label>at <input type="date" data-f="sent_at" value="${s.sent_at ? s.sent_at.slice(0, 10) : ''}"></label>
       <label><input type="checkbox" data-f="response_received" ${s.response_received ? 'checked' : ''}> response</label>
@@ -452,8 +506,10 @@ function stepCard(s, idx, steps) {
     return out;
   };
 
-  el.querySelector('.save-step').onclick = async () => {
-    const payload = collect();
+  // Save this step's fields. Pass overrides to set values without touching the inputs
+  // first (e.g. the "Sent today" shortcut sets sent + sent_at in one go).
+  const commit = async (overrides = {}) => {
+    const payload = { ...collect(), ...overrides };
     try {
       await api(`/person-campaign-steps/${s.id}`, {
         method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
@@ -468,6 +524,9 @@ function stepCard(s, idx, steps) {
       }
     } catch (e) { toast(e.message); }
   };
+  el.querySelector('.save-step').onclick = () => commit();
+  // One-click "sent today": mark sent and stamp today's date, saving any draft edits too.
+  el.querySelector('.sent-today')?.addEventListener('click', () => commit({ sent: true, sent_at: todayStr() }));
   el.querySelector('.draft').onclick = async () => {
     const btn = el.querySelector('.draft'); const prev = btn.textContent;
     btn.textContent = '… drafting'; btn.disabled = true;
@@ -503,6 +562,7 @@ function stepCard(s, idx, steps) {
   };
   el.querySelector('.move-up').onclick = () => move(-1);
   el.querySelector('.move-down').onclick = () => move(1);
+  wireChannels(el);
   return el;
 }
 
@@ -602,7 +662,7 @@ function campaignStepRow(s) {
   el.dataset.stepId = s.id;
   el.innerHTML = `
     <input data-f="step_order" value="${esc(s.step_order)}" title="order">
-    <input data-f="channel" value="${esc(s.channel)}" placeholder="channel">
+    ${channelField(s.channel)}
     <div>
       <input data-f="purpose" value="${esc(s.purpose)}" placeholder="purpose" style="width:100%;margin-bottom:4px">
       <textarea data-f="skeleton_text" placeholder="skeleton text">${esc(s.skeleton_text)}</textarea>
@@ -653,6 +713,7 @@ function campaignStepRow(s) {
     try { await api(`/campaigns/${editingCampaign.id}/steps/${s.id}`, { method: 'DELETE' }); await editCampaign(editingCampaign.id); }
     catch (e) { toast(e.message); }
   };
+  wireChannels(el);
   return el;
 }
 
