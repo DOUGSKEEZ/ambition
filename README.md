@@ -1,14 +1,16 @@
 # Ambition CRM
 
-A small squad of local tools for running a sharp, high-volume, **honest** job-search campaign at AI-native companies. Each app owns one job — recon, outreach, ideas, command — and they share one Postgres database and one set of local/Claude inference endpoints. Everything runs on the `samwise` host; nothing is hosted, nothing leaves the box except the LLM calls I opt into.
+A small squad of local tools _leveraging AI_ for running a sharp, high-volume, **honest** job-search campaign at AI-native companies. 
+Each app owns one job — recon, outreach, ideas, command — and they share one Postgres database and one set of LLM endpoints.  
+LLM calls go either to my local CLio LLM or a 3rd party Foundation Model.
 
 The metaphor is a game squad. Four independently hosted roles:
 
 | Role | App | Job | Status |
 |------|-----|-----|--------|
-| 🎯 **Sniper** | [`sniper/`](sniper/) | Acquire targets — capture a LinkedIn profile into a reviewed contact record | **Shipped** · :7700 |
+| 🎯 **Sniper** | [`sniper/`](sniper/) | Acquire targets — capture a LinkedIn profile into a reviewed contact record with AI summary | **Shipped** · :7700 |
 | 🩹 **Medic** | [`meddic/`](meddic/) | Keep the campaign alive — run customized outreach sequences and track every touch | **Shipped** · :7701 |
-| 🔧 **Engineer** | [`engineer/`](engineer/) | Improve the kit — a backlog of workflow / tooling ideas for the CRM | **Ideas space** |
+| 🔧 **Engineer** | [`engineer/`](engineer/) | Metrics for optimization — a backlog of workflow / tooling ideas for the CRM | **Planned** |
 | ⭐ **Commander** | [`commander/`](commander/) | Strategic Company Overview — aggregate target company news, events, and other informationinto one strategic view | **Planned** |
 
 ---
@@ -16,7 +18,13 @@ The metaphor is a game squad. Four independently hosted roles:
 ## 🎯 Sniper — target acquisition
 
 Turns a LinkedIn profile I find **from in my browser** into a staged contact record: deterministic fields parsed from the page plus type-specific AI notes, reviewed and approved
-in a small local web UI. Sniper never fetches LinkedIn itself — capture happens client-side via an MV3 extension, so there's no scraping infrastructure and no account risk.
+in a small local web UI. 
+
+Two Parts:
+- Browser Extension 
+- WebUI for shipping to pipeline
+
+NOTE: There is NO scraping infrastructure and no account risk.  It uses AI to summarize and retrieve what I see when I view a linkedin profile.
 
 Shipped and in daily use. Full docs: [`sniper/README.md`](sniper/README.md).
 
