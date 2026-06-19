@@ -1,4 +1,4 @@
-# Ambition
+# Ambition CRM
 
 A small squad of local tools for running a sharp, high-volume, **honest** job-search campaign at AI-native companies. Each app owns one job — recon, outreach, ideas, command — and they share one Postgres database and one set of local/Claude inference endpoints. Everything runs on the `samwise` host; nothing is hosted, nothing leaves the box except the LLM calls I opt into.
 
@@ -38,11 +38,9 @@ The name is closer to the truth than a pun. Medic runs the **MEDDIC** qualificat
 - **Identify Pain** — the company need I solve, found in notes and projected into the campaign's angle.
 - **Champion** — every contact is a potential internal advocate; the relationship-building process is how they're found.
 
-Today the framework lives *implicitly*, in free-text notes and the campaign structure. Making it explicit — a per-company MEDDIC scorecard — is a strong candidate for the **Commander**.
-
 Shipped 2026-05-31. Lives in [`meddic/`](meddic/) (the directory keeps the original `meddic` name).
 
-## 🔧 Engineer — improve the kit
+## 🔧 Engineer — Analytics/Metrics
 
 Planned Metrics and Analytics to track my effectiveness. See [`engineer/engineer-plan.md`](engineer/engineer-plan.md) for the running backlog. 
 
@@ -77,7 +75,7 @@ First-time setup for each app is in its own README (`npm install`, `createdb sni
 ambition/
 ├── sniper/        🎯 LinkedIn capture → enrichment → review  (shipped)
 ├── meddic/        🩹 campaign engine & outreach tracker      (shipped)
-├── engineer/      🔧 ideas backlog for CRM improvements
-├── commander/     ⭐ company rollup view                      (planned)
+├── engineer/      🔧 ideas backlog for CRM improvements       (planned B)
+├── commander/     ⭐ company rollup view                      (planned A)
 ├── start-ambition.sh / kill-ambition.sh
 ```
