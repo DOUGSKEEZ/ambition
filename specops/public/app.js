@@ -62,6 +62,11 @@ let opportunities = [];
 const peopleCache = {}; // company_id -> people[]
 let dragId = null;
 
+// Per-card collapse state (ids of collapsed opportunities), persisted across reloads.
+let collapsed = new Set();
+try { collapsed = new Set(JSON.parse(localStorage.getItem('specops.collapsed') || '[]')); } catch { /* ignore */ }
+const saveCollapsed = () => localStorage.setItem('specops.collapsed', JSON.stringify([...collapsed]));
+
 const findOpp = (id) => opportunities.find((o) => o.id === id);
 
 // ---------- bootstrap ----------
@@ -111,16 +116,26 @@ function renderBoard() {
 }
 
 function card(o) {
+  const isCol = collapsed.has(o.id);
+  const outcome = o.stage === 'closed' && o.outcome ? `<span class="badge outcome">${esc(o.outcome)}</span>` : '';
+  // Header is always shown (company + title) with a collapse chevron; the body is hidden when collapsed.
+  const head = `<div class="oc-head">
+    <div class="oc-titles">
+      <div class="oc-company">${esc(o.company_name)} ${outcome}</div>
+      <div class="oc-role">${o.role_title ? esc(o.role_title) : '<span class="muted">untitled role</span>'}</div>
+    </div>
+    <button class="oc-collapse" data-collapse="${o.id}" title="${isCol ? 'Expand' : 'Collapse'}">${isCol ? '▸' : '▾'}</button>
+  </div>`;
+  if (isCol) return `<div class="opp-card collapsed" draggable="true" data-id="${o.id}">${head}</div>`;
+
   const primary = (o.contacts || []).find((c) => c.is_primary) || (o.contacts || [])[0];
   const meta = [o.comp_range, o.location].filter(Boolean).map((x) => `<span>${esc(x)}</span>`).join('');
   const extra = (o.contacts || []).length > 1 ? `<span class="muted" style="font-size:11px">+${o.contacts.length - 1}</span>` : '';
   const contactBit = primary
     ? `<div class="oc-contacts"><img class="thumb sm" src="${photoUrl(primary)}" title="${esc(primary.name)}"> <span style="font-size:12px">${esc(primary.name)}</span> ${extra}</div>`
     : '<div class="oc-contacts muted" style="font-size:12px">no contact yet</div>';
-  const outcome = o.stage === 'closed' && o.outcome ? `<span class="badge outcome">${esc(o.outcome)}</span>` : '';
   return `<div class="opp-card" draggable="true" data-id="${o.id}">
-    <div class="oc-company">${esc(o.company_name)} ${outcome}</div>
-    <div class="oc-role">${o.role_title ? esc(o.role_title) : '<span class="muted">untitled role</span>'}</div>
+    ${head}
     ${meta ? `<div class="oc-meta">${meta}</div>` : ''}
     ${contactBit}
   </div>`;
@@ -132,6 +147,16 @@ function wireBoard() {
     el.addEventListener('dragstart', (e) => { dragId = Number(el.dataset.id); el.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; });
     el.addEventListener('dragend', () => { el.classList.remove('dragging'); dragId = null; });
     el.addEventListener('click', () => { const o = findOpp(Number(el.dataset.id)); if (o) openDetail(o); });
+  });
+  // Collapse/expand chevron — toggles the card without opening the detail.
+  board.querySelectorAll('[data-collapse]').forEach((el) => {
+    el.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const id = Number(el.dataset.collapse);
+      if (collapsed.has(id)) collapsed.delete(id); else collapsed.add(id);
+      saveCollapsed();
+      renderBoard();
+    });
   });
   board.querySelectorAll('.col').forEach((col) => {
     col.addEventListener('dragover', (e) => { e.preventDefault(); col.classList.add('drag-over'); });

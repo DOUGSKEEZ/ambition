@@ -76,6 +76,11 @@ textarea { width: 100%; resize: vertical; min-height: 60px; line-height: 1.5; }
 .opp-card { background: var(--panel-2); border: 1px solid var(--border); border-radius: 8px; padding: 10px; cursor: grab; }
 .opp-card:hover { border-color: var(--accent); }
 .opp-card.dragging { opacity: .5; }
+.opp-card.collapsed { padding: 7px 10px; }
+.opp-card .oc-head { display: flex; align-items: flex-start; gap: 6px; }
+.opp-card .oc-titles { flex: 1; min-width: 0; }
+.opp-card .oc-collapse { background: none; border: none; color: var(--muted); cursor: pointer; padding: 0 2px; font-size: 12px; line-height: 1.2; flex: none; }
+.opp-card .oc-collapse:hover { color: var(--accent); border-color: transparent; }
 .opp-card .oc-company { font-weight: 700; }
 .opp-card .oc-role { color: var(--text); font-size: 13px; margin-top: 1px; }
 .opp-card .oc-meta { color: var(--muted); font-size: 12px; margin-top: 6px; display: flex; flex-wrap: wrap; gap: 4px 10px; }
