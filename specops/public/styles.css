@@ -92,7 +92,16 @@ textarea { width: 100%; resize: vertical; min-height: 60px; line-height: 1.5; }
 
 /* --- modal --- */
 .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.55); display: flex; align-items: flex-start; justify-content: center; padding: 40px 16px; z-index: 50; overflow-y: auto; }
-.modal { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; width: 820px; max-width: 100%; padding: 22px 24px; }
+.modal { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; width: min(620px, 94vw); max-width: 100%; padding: 22px 24px; }
+.modal.two-col { width: min(1180px, 94vw); } /* the detail modal earns the extra width */
+.mcol { min-width: 0; }
+/* The detail modal (.two-col) uses the room on wide screens: opportunity fields left, HM
+   notes + contacts right. Below 900px the .mcol blocks stack into one column. The create
+   modal has no .mcol wrappers, so it stays single-column regardless. */
+@media (min-width: 900px) {
+  .modal.two-col { display: grid; grid-template-columns: 1fr 1fr; column-gap: 28px; align-items: start; }
+  .modal.two-col > h2, .modal.two-col > .sub, .modal.two-col > .modal-actions { grid-column: 1 / -1; }
+}
 .modal h2 { margin: 0 0 4px; font-size: 18px; }
 .modal .sub { color: var(--muted); font-size: 13px; margin-bottom: 16px; }
 .field { margin-bottom: 12px; }

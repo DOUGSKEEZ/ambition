@@ -148,7 +148,7 @@ function wireBoard() {
 
 // ---------- modal ----------
 function openModal() { $('modal').classList.remove('hidden'); }
-function closeModal() { $('modal').classList.add('hidden'); $('modal-body').innerHTML = ''; }
+function closeModal() { $('modal').classList.add('hidden'); $('modal-body').innerHTML = ''; $('modal-body').classList.remove('two-col'); }
 $('modal').addEventListener('click', (e) => { if (e.target === $('modal')) closeModal(); });
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('modal').classList.contains('hidden')) closeModal(); });
 
@@ -158,6 +158,7 @@ const stageOptions = (sel) => STAGES.map((s) => `<option value="${s.key}"${s.key
 function openCreate() {
   if (!companies.length) { toast('Add a company in Sniper first'); return; }
   const coOpts = companies.map((c) => `<option value="${c.id}">${esc(c.name)}</option>`).join('');
+  $('modal-body').classList.remove('two-col');
   $('modal-body').innerHTML = `
     <h2>New opportunity</h2>
     <div class="sub">A role you're pursuing. Company is required; everything else is optional and editable later.</div>
@@ -203,48 +204,53 @@ async function renderDetail(o) {
   const outcomeOpts = ['<option value="">—</option>'].concat(OUTCOMES.map((x) => `<option value="${x}"${x === o.outcome ? ' selected' : ''}>${x}</option>`)).join('');
   const personLabel = (p) => `${p.name}${p.title ? ' — ' + p.title : ''}`;
 
+  $('modal-body').classList.add('two-col');
   $('modal-body').innerHTML = `
     <h2>${esc(o.company_name)}</h2>
     <div class="sub">${o.role_title ? esc(o.role_title) : 'untitled role'} · ${STAGE_LABEL[o.stage]}</div>
 
-    <div class="field"><label>Role title</label><input data-f="role_title" type="text" value="${esc(o.role_title)}" placeholder="placeholder is fine"></div>
-    <div class="field"><label>Job posting URL</label><input data-f="job_posting_url" type="url" value="${esc(o.job_posting_url)}" placeholder="(optional — many roles aren't listed)"></div>
-    <div class="row2">
-      <div class="field"><label>Comp range</label><input data-f="comp_range" type="text" value="${esc(o.comp_range)}"></div>
-      <div class="field"><label>Location</label><input data-f="location" type="text" value="${esc(o.location)}"></div>
-    </div>
-    <div class="row2">
-      <div class="field"><label>Stage</label><select data-f="stage">${stageOptions(o.stage)}</select></div>
-      <div class="field">
-        <label>First message <span class="muted" style="text-transform:none;letter-spacing:0">· to the primary HM</span></label>
-        <div class="fm-row">
-          <input data-f="first_message_at" type="date" value="${esc(o.first_message_at)}">
-          <button class="sm" id="import-fm" type="button" title="Pull the date + text of your first Medic message to the primary HM">↓ Import</button>
+    <div class="mcol">
+      <div class="field"><label>Role title</label><input data-f="role_title" type="text" value="${esc(o.role_title)}" placeholder="placeholder is fine"></div>
+      <div class="field"><label>Job posting URL</label><input data-f="job_posting_url" type="url" value="${esc(o.job_posting_url)}" placeholder="(optional — many roles aren't listed)"></div>
+      <div class="row2">
+        <div class="field"><label>Comp range</label><input data-f="comp_range" type="text" value="${esc(o.comp_range)}"></div>
+        <div class="field"><label>Location</label><input data-f="location" type="text" value="${esc(o.location)}"></div>
+      </div>
+      <div class="row2">
+        <div class="field"><label>Stage</label><select data-f="stage">${stageOptions(o.stage)}</select></div>
+        <div class="field">
+          <label>First message <span class="muted" style="text-transform:none;letter-spacing:0">· to the primary HM</span></label>
+          <div class="fm-row">
+            <input data-f="first_message_at" type="date" value="${esc(o.first_message_at)}">
+            <button class="sm" id="import-fm" type="button" title="Pull the date + text of your first Medic message to the primary HM">↓ Import</button>
+          </div>
         </div>
       </div>
+      <div id="fm-preview" class="fm-preview hidden"></div>
+      <div class="field"><label>Opportunity notes</label><textarea data-f="notes" placeholder="Prep, threads, interview context…">${esc(o.notes)}</textarea></div>
     </div>
-    <div id="fm-preview" class="fm-preview hidden"></div>
-    ${primary ? `<div class="field">
-      <label>Primary HM notes — ${esc(primary.name)} <span class="muted" style="text-transform:none;letter-spacing:0">· from Medic, read-only</span></label>
-      <div class="hm-notes">
-        ${primary.my_notes ? `<div class="note-block">${esc(primary.my_notes)}</div>` : ''}
-        ${primary.ai_summary ? `<div class="note-block ai"><span class="muted">AI summary</span>\n${esc(primary.ai_summary)}</div>` : ''}
-        ${(!primary.my_notes && !primary.ai_summary) ? '<span class="muted" style="font-size:13px">No notes on this contact yet — add them in Medic.</span>' : ''}
-        <a class="link" href="${medicLink(primary.person_id)}" target="_blank" rel="noopener"><img class="ic14" src="icons/meddic-20.png" alt=""> Edit in Medic ↗</a>
-      </div>
-    </div>` : ''}
 
-    <div class="field"><label>Opportunity notes</label><textarea data-f="notes" placeholder="Prep, threads, interview context…">${esc(o.notes)}</textarea></div>
+    <div class="mcol">
+      ${primary ? `<div class="field">
+        <label>Primary HM notes — ${esc(primary.name)} <span class="muted" style="text-transform:none;letter-spacing:0">· from Medic, read-only</span></label>
+        <div class="hm-notes">
+          ${primary.my_notes ? `<div class="note-block">${esc(primary.my_notes)}</div>` : ''}
+          ${primary.ai_summary ? `<div class="note-block ai"><span class="muted">AI summary</span>\n${esc(primary.ai_summary)}</div>` : ''}
+          ${(!primary.my_notes && !primary.ai_summary) ? '<span class="muted" style="font-size:13px">No notes on this contact yet — add them in Medic.</span>' : ''}
+          <a class="link" href="${medicLink(primary.person_id)}" target="_blank" rel="noopener"><img class="ic14" src="icons/meddic-20.png" alt=""> Edit in Medic ↗</a>
+        </div>
+      </div>` : ''}
 
-    <div class="field">
-      <label>Target contacts (HMs — guessing is fine)</label>
-      <div class="contacts-list" id="contacts-list">
-        ${(o.contacts || []).length ? o.contacts.map(contactRow).join('') : '<span class="muted" style="font-size:13px">No contacts attached yet.</span>'}
-      </div>
-      <div class="add-contact">
-        <input id="add-person" list="people-dl" placeholder="${addable.length ? 'Search a contact to add…' : '(no more contacts for this company)'}" autocomplete="off"${addable.length ? '' : ' disabled'}>
-        <datalist id="people-dl">${addable.map((p) => `<option value="${esc(personLabel(p))}"></option>`).join('')}</datalist>
-        <button class="sm" id="add-contact-btn"${addable.length ? '' : ' disabled'}>+ Add</button>
+      <div class="field">
+        <label>Target contacts (HMs — guessing is fine)</label>
+        <div class="contacts-list" id="contacts-list">
+          ${(o.contacts || []).length ? o.contacts.map(contactRow).join('') : '<span class="muted" style="font-size:13px">No contacts attached yet.</span>'}
+        </div>
+        <div class="add-contact">
+          <input id="add-person" list="people-dl" placeholder="${addable.length ? 'Search a contact to add…' : '(no more contacts for this company)'}" autocomplete="off"${addable.length ? '' : ' disabled'}>
+          <datalist id="people-dl">${addable.map((p) => `<option value="${esc(personLabel(p))}"></option>`).join('')}</datalist>
+          <button class="sm" id="add-contact-btn"${addable.length ? '' : ' disabled'}>+ Add</button>
+        </div>
       </div>
     </div>
 
