@@ -88,6 +88,31 @@ router.get('/', async (req, res) => {
   }
 });
 
+// GET /opportunities/:id/first-message — the earliest message Doug sent to this opportunity's
+// PRIMARY contact, pulled from Medic's send history (shared DB). Backs the "import" button so
+// first_message_at doesn't have to be retyped. Returns null when there's no primary or no send.
+router.get('/:id/first-message', async (req, res) => {
+  try {
+    const id = Number.parseInt(req.params.id, 10);
+    if (!Number.isInteger(id)) return res.status(400).json({ error: 'bad id' });
+    const r = await query(
+      `SELECT to_char(s.sent_at, 'YYYY-MM-DD') AS date, s.channel, s.customized_text AS text, p.name AS contact_name
+       FROM opportunity_contacts oc
+       JOIN people p ON p.id = oc.person_id
+       JOIN person_campaigns pc ON pc.person_id = oc.person_id
+       JOIN person_campaign_steps s ON s.person_campaign_id = pc.id
+       WHERE oc.opportunity_id = $1 AND oc.is_primary AND s.sent AND s.sent_at IS NOT NULL
+       ORDER BY s.sent_at ASC
+       LIMIT 1`,
+      [id]
+    );
+    res.json(r.rows[0] || null);
+  } catch (err) {
+    console.error('[GET /opportunities/:id/first-message]', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // POST /opportunities — company_id required; everything else optional.
 router.post('/', async (req, res) => {
   try {

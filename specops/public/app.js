@@ -201,6 +201,7 @@ async function renderDetail(o) {
   const addable = people.filter((p) => !attachedIds.has(p.id));
   const primary = (o.contacts || []).find((c) => c.is_primary) || (o.contacts || [])[0];
   const outcomeOpts = ['<option value="">—</option>'].concat(OUTCOMES.map((x) => `<option value="${x}"${x === o.outcome ? ' selected' : ''}>${x}</option>`)).join('');
+  const personLabel = (p) => `${p.name}${p.title ? ' — ' + p.title : ''}`;
 
   $('modal-body').innerHTML = `
     <h2>${esc(o.company_name)}</h2>
@@ -214,19 +215,22 @@ async function renderDetail(o) {
     </div>
     <div class="row2">
       <div class="field"><label>Stage</label><select data-f="stage">${stageOptions(o.stage)}</select></div>
-      <div class="field"><label>Outcome (if closed)</label><select data-f="outcome">${outcomeOpts}</select></div>
+      <div class="field">
+        <label>First message <span class="muted" style="text-transform:none;letter-spacing:0">· to the primary HM</span></label>
+        <div class="fm-row">
+          <input data-f="first_message_at" type="date" value="${esc(o.first_message_at)}">
+          <button class="sm" id="import-fm" type="button" title="Pull the date + text of your first Medic message to the primary HM">↓ Import</button>
+        </div>
+      </div>
     </div>
-    <div class="row2">
-      <div class="field"><label>First message</label><input data-f="first_message_at" type="date" value="${esc(o.first_message_at)}"></div>
-      <div class="field"><label>First reply</label><input data-f="first_reply_at" type="date" value="${esc(o.first_reply_at)}"></div>
-    </div>
+    <div id="fm-preview" class="fm-preview hidden"></div>
     ${primary ? `<div class="field">
       <label>Primary HM notes — ${esc(primary.name)} <span class="muted" style="text-transform:none;letter-spacing:0">· from Medic, read-only</span></label>
       <div class="hm-notes">
         ${primary.my_notes ? `<div class="note-block">${esc(primary.my_notes)}</div>` : ''}
         ${primary.ai_summary ? `<div class="note-block ai"><span class="muted">AI summary</span>\n${esc(primary.ai_summary)}</div>` : ''}
         ${(!primary.my_notes && !primary.ai_summary) ? '<span class="muted" style="font-size:13px">No notes on this contact yet — add them in Medic.</span>' : ''}
-        <a class="link" href="${medicLink(primary.person_id)}" target="_blank" rel="noopener">Edit in Medic ↗</a>
+        <a class="link" href="${medicLink(primary.person_id)}" target="_blank" rel="noopener"><img class="ic14" src="icons/meddic-20.png" alt=""> Edit in Medic ↗</a>
       </div>
     </div>` : ''}
 
@@ -238,7 +242,8 @@ async function renderDetail(o) {
         ${(o.contacts || []).length ? o.contacts.map(contactRow).join('') : '<span class="muted" style="font-size:13px">No contacts attached yet.</span>'}
       </div>
       <div class="add-contact">
-        <select id="add-person">${addable.length ? addable.map((p) => `<option value="${p.id}">${esc(p.name)}${p.title ? ' — ' + esc(p.title) : ''}</option>`).join('') : '<option value="">(no more contacts for this company)</option>'}</select>
+        <input id="add-person" list="people-dl" placeholder="${addable.length ? 'Search a contact to add…' : '(no more contacts for this company)'}" autocomplete="off"${addable.length ? '' : ' disabled'}>
+        <datalist id="people-dl">${addable.map((p) => `<option value="${esc(personLabel(p))}"></option>`).join('')}</datalist>
         <button class="sm" id="add-contact-btn"${addable.length ? '' : ' disabled'}>+ Add</button>
       </div>
     </div>
@@ -247,6 +252,7 @@ async function renderDetail(o) {
       <button class="primary" id="m-save">Save</button>
       <button id="m-close">Close</button>
       <span class="spacer"></span>
+      <label class="footer-outcome">Outcome <select data-f="outcome">${outcomeOpts}</select></label>
       <button class="bad sm" id="m-delete">Delete</button>
     </div>`;
 
@@ -261,14 +267,28 @@ async function renderDetail(o) {
     };
   });
   $('add-contact-btn').onclick = async () => {
-    const pid = Number($('add-person').value);
-    if (!pid) return;
+    const val = $('add-person').value.trim();
+    if (!val) return;
+    // Map the typed/selected search text back to a contact (exact label, else exact name).
+    const person = addable.find((p) => personLabel(p) === val) || addable.find((p) => p.name === val);
+    if (!person) { toast('Pick a contact from the list'); return; }
     // Default the contact's role label from their contact type, not a hardcoded "hiring manager".
-    const person = people.find((p) => p.id === pid);
-    const role = person ? ({ hiring_manager: 'hiring manager', recruiter: 'recruiter', peer: 'peer' }[person.type] || null) : null;
+    const role = { hiring_manager: 'hiring manager', recruiter: 'recruiter', peer: 'peer' }[person.type] || null;
     const makePrimary = !(o.contacts || []).some((c) => c.is_primary); // first contact becomes primary
-    try { const upd = await jsonPost(`/opportunities/${o.id}/contacts`, { person_id: pid, role, is_primary: makePrimary }); await renderDetail(upd); refreshUnder(); } catch (e) { toast(e.message); }
+    try { const upd = await jsonPost(`/opportunities/${o.id}/contacts`, { person_id: person.id, role, is_primary: makePrimary }); await renderDetail(upd); refreshUnder(); } catch (e) { toast(e.message); }
   };
+  // Import the first Medic message to the primary HM: fills the date + shows the message text.
+  $('import-fm')?.addEventListener('click', async () => {
+    try {
+      const msg = await api(`/opportunities/${o.id}/first-message`);
+      if (!msg) { toast(primary ? 'No sent message found for the primary HM' : 'Set a primary HM first'); return; }
+      const inp = $('modal-body').querySelector('[data-f="first_message_at"]');
+      if (inp) inp.value = msg.date;
+      const prev = $('fm-preview');
+      prev.classList.remove('hidden');
+      prev.innerHTML = `<div class="muted">${esc(msg.date)} · ${esc(msg.channel || 'message')} → ${esc(msg.contact_name || '')} <span style="font-style:italic">(date filled — click Save to keep)</span></div>${esc(msg.text || '')}`;
+    } catch (e) { toast(e.message); }
+  });
 
   $('m-close').onclick = closeModal;
   $('m-save').onclick = async () => {
@@ -290,7 +310,7 @@ function contactRow(c) {
       <div class="cr-title">${typeBadge(c.type)} ${c.role ? esc(c.role) : ''}${c.title ? ' · ' + esc(c.title) : ''}</div>
     </div>
     <span class="spacer"></span>
-    <a class="link" href="${medicLink(c.person_id)}" target="_blank" rel="noopener">Medic ↗</a>
+    <a class="link" href="${medicLink(c.person_id)}" target="_blank" rel="noopener"><img class="ic14" src="icons/meddic-20.png" alt=""> Medic ↗</a>
     ${c.is_primary ? '' : `<a class="link" data-primary="${c.person_id}">make primary</a>`}
     <a class="link" data-remove="${c.person_id}">remove</a>
   </div>`;
