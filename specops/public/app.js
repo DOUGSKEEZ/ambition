@@ -49,6 +49,8 @@ function photoUrl(p) {
     : 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"><rect width="24" height="24" fill="%231f2430"/></svg>');
 }
 const typeBadge = (t) => (t ? `<span class="badge ${esc(t)}">${esc(t.replace('_', ' '))}</span>` : '');
+// Deep link to a contact's detail in Medic (shared people table -> same id, new tab).
+const medicLink = (pid) => `${location.protocol}//${location.hostname}:7701/?person=${pid}`;
 
 // --- state ---
 let companies = [];
@@ -161,6 +163,7 @@ function openCreate() {
     <div class="sub">A role you're pursuing. Company is required; everything else is optional and editable later.</div>
     <div class="field"><label>Company *</label><select data-f="company_id">${coOpts}</select></div>
     <div class="field"><label>Role title</label><input data-f="role_title" type="text" placeholder="e.g. Sr Enterprise AE (placeholder is fine)"></div>
+    <div class="field"><label>Job posting URL</label><input data-f="job_posting_url" type="url" placeholder="(optional — many roles aren't listed)"></div>
     <div class="row2">
       <div class="field"><label>Comp range</label><input data-f="comp_range" type="text" placeholder="$220–260k"></div>
       <div class="field"><label>Location</label><input data-f="location" type="text" placeholder="SF / NY / Remote"></div>
@@ -196,6 +199,7 @@ async function renderDetail(o) {
   const people = await peopleFor(o.company_id).catch(() => []);
   const attachedIds = new Set((o.contacts || []).map((c) => c.person_id));
   const addable = people.filter((p) => !attachedIds.has(p.id));
+  const primary = (o.contacts || []).find((c) => c.is_primary) || (o.contacts || [])[0];
   const outcomeOpts = ['<option value="">—</option>'].concat(OUTCOMES.map((x) => `<option value="${x}"${x === o.outcome ? ' selected' : ''}>${x}</option>`)).join('');
 
   $('modal-body').innerHTML = `
@@ -216,7 +220,17 @@ async function renderDetail(o) {
       <div class="field"><label>First message</label><input data-f="first_message_at" type="date" value="${esc(o.first_message_at)}"></div>
       <div class="field"><label>First reply</label><input data-f="first_reply_at" type="date" value="${esc(o.first_reply_at)}"></div>
     </div>
-    <div class="field"><label>Notes</label><textarea data-f="notes" placeholder="Prep, context, threads…">${esc(o.notes)}</textarea></div>
+    ${primary ? `<div class="field">
+      <label>Primary HM notes — ${esc(primary.name)} <span class="muted" style="text-transform:none;letter-spacing:0">· from Medic, read-only</span></label>
+      <div class="hm-notes">
+        ${primary.my_notes ? `<div class="note-block">${esc(primary.my_notes)}</div>` : ''}
+        ${primary.ai_summary ? `<div class="note-block ai"><span class="muted">AI summary</span>\n${esc(primary.ai_summary)}</div>` : ''}
+        ${(!primary.my_notes && !primary.ai_summary) ? '<span class="muted" style="font-size:13px">No notes on this contact yet — add them in Medic.</span>' : ''}
+        <a class="link" href="${medicLink(primary.person_id)}" target="_blank" rel="noopener">Edit in Medic ↗</a>
+      </div>
+    </div>` : ''}
+
+    <div class="field"><label>Opportunity notes</label><textarea data-f="notes" placeholder="Prep, threads, interview context…">${esc(o.notes)}</textarea></div>
 
     <div class="field">
       <label>Target contacts (HMs — guessing is fine)</label>
@@ -276,6 +290,7 @@ function contactRow(c) {
       <div class="cr-title">${typeBadge(c.type)} ${c.role ? esc(c.role) : ''}${c.title ? ' · ' + esc(c.title) : ''}</div>
     </div>
     <span class="spacer"></span>
+    <a class="link" href="${medicLink(c.person_id)}" target="_blank" rel="noopener">Medic ↗</a>
     ${c.is_primary ? '' : `<a class="link" data-primary="${c.person_id}">make primary</a>`}
     <a class="link" data-remove="${c.person_id}">remove</a>
   </div>`;

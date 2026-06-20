@@ -924,5 +924,8 @@ document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('prom
     await loadCompanies();
     await loadCampaignList();
     await loadToday();
+    // Deep link: /?person=ID opens that contact directly (used by the SpecOps cross-link).
+    const pid = Number(new URLSearchParams(location.search).get('person'));
+    if (Number.isInteger(pid) && pid > 0) await openPerson(pid).catch((e) => toast(e.message));
   } catch (e) { toast(e.message); }
 })();

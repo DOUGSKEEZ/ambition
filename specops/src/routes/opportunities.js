@@ -60,7 +60,8 @@ function selectOpportunities(whereSql = '', params = []) {
               SELECT json_agg(json_build_object(
                        'person_id', oc.person_id, 'name', p.name, 'title', p.title,
                        'type', p.type, 'photo_path', p.photo_path,
-                       'role', oc.role, 'is_primary', oc.is_primary)
+                       'role', oc.role, 'is_primary', oc.is_primary,
+                       'my_notes', p.my_notes, 'ai_summary', p.ai_summary)
                      ORDER BY oc.is_primary DESC, p.name)
               FROM opportunity_contacts oc JOIN people p ON p.id = oc.person_id
               WHERE oc.opportunity_id = o.id
