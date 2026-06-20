@@ -34,11 +34,11 @@ const jsonPut = (path, obj) => api(path, { method: 'PUT', headers: { 'Content-Ty
 const jsonPost = (path, obj) => api(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(obj) });
 
 const STAGES = [
+  { key: 'lead', label: 'Lead' },
   { key: 'outreach', label: 'Outreach' },
   { key: 'hm_reply', label: 'HM Reply' },
   { key: 'screen', label: 'Screen' },
   { key: 'interview', label: 'Interview' },
-  { key: 'onsite', label: 'Onsite' },
   { key: 'offer', label: 'Offer' },
   { key: 'closed', label: 'Closed' },
 ];
@@ -172,7 +172,7 @@ function openCreate() {
       <div class="field"><label>Comp range</label><input data-f="comp_range" type="text" placeholder="$220–260k"></div>
       <div class="field"><label>Location</label><input data-f="location" type="text" placeholder="SF / NY / Remote"></div>
     </div>
-    <div class="field"><label>Stage</label><select data-f="stage">${stageOptions('outreach')}</select></div>
+    <div class="field"><label>Stage</label><select data-f="stage">${stageOptions('lead')}</select></div>
     <div class="modal-actions">
       <button class="primary" id="m-create">Create</button>
       <span class="spacer"></span>

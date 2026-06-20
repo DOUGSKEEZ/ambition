@@ -3,7 +3,7 @@ import { query, withTransaction } from '../db.js';
 
 const router = Router();
 
-const STAGES = new Set(['outreach', 'hm_reply', 'screen', 'interview', 'onsite', 'offer', 'closed']);
+const STAGES = new Set(['lead', 'outreach', 'hm_reply', 'screen', 'interview', 'offer', 'closed']);
 const OUTCOMES = new Set(['accepted', 'rejected', 'withdrawn']);
 const DATE_FIELDS = new Set(['first_message_at', 'first_reply_at']);
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;

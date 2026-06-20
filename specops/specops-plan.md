@@ -17,7 +17,7 @@ Opportunity
   hiring_manager    → a people row (the HM IS the champion — no separate flag)
   comp_range
   location          → SF / NY / remote / …
-  stage             → outreach → HM reply → screen → interview → onsite → offer
+  stage             → lead → outreach → HM reply → screen → interview → offer → closed
   first_message_at  → first touch to the HM
   first_reply_at    → first real reply from the HM
   notes / prep
