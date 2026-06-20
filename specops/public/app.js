@@ -51,6 +51,8 @@ function photoUrl(p) {
 const typeBadge = (t) => (t ? `<span class="badge ${esc(t)}">${esc(t.replace('_', ' '))}</span>` : '');
 // Deep link to a contact's detail in Medic (shared people table -> same id, new tab).
 const medicLink = (pid) => `${location.protocol}//${location.hostname}:7701/?person=${pid}`;
+// Default opportunity-contact role label per contact type (so it isn't retyped on attach).
+const TYPE_ROLE = { hiring_manager: 'hiring manager', recruiter: 'recruiter', peer: 'peer' };
 
 // --- state ---
 let companies = [];
@@ -279,7 +281,7 @@ async function renderDetail(o) {
     const person = addable.find((p) => personLabel(p) === val) || addable.find((p) => p.name === val);
     if (!person) { toast('Pick a contact from the list'); return; }
     // Default the contact's role label from their contact type, not a hardcoded "hiring manager".
-    const role = { hiring_manager: 'hiring manager', recruiter: 'recruiter', peer: 'peer' }[person.type] || null;
+    const role = TYPE_ROLE[person.type] || null;
     const makePrimary = !(o.contacts || []).some((c) => c.is_primary); // first contact becomes primary
     try { const upd = await jsonPost(`/opportunities/${o.id}/contacts`, { person_id: person.id, role, is_primary: makePrimary }); await renderDetail(upd); refreshUnder(); } catch (e) { toast(e.message); }
   };
@@ -313,7 +315,7 @@ function contactRow(c) {
     <img class="thumb" src="${photoUrl(c)}">
     <div>
       <div class="cr-name">${esc(c.name)} ${c.is_primary ? '<span class="badge primary">★ primary</span>' : ''}</div>
-      <div class="cr-title">${typeBadge(c.type)} ${c.role ? esc(c.role) : ''}${c.title ? ' · ' + esc(c.title) : ''}</div>
+      <div class="cr-title">${typeBadge(c.type)}${(c.role && c.role !== TYPE_ROLE[c.type]) ? ' ' + esc(c.role) : ''}${c.title ? ' · ' + esc(c.title) : ''}</div>
     </div>
     <span class="spacer"></span>
     <a class="link medic-link" href="${medicLink(c.person_id)}" target="_blank" rel="noopener" title="Open in Meddic"><span class="ml-top"><img class="ic14" src="icons/meddic-20.png" alt="">↗</span><span class="ml-label">Meddic</span></a>
