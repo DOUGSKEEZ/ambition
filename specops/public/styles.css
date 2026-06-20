@@ -82,6 +82,10 @@ textarea { width: 100%; resize: vertical; min-height: 60px; line-height: 1.5; }
 .opp-card .oc-collapse { background: none; border: none; color: var(--muted); cursor: pointer; padding: 0 2px; font-size: 12px; line-height: 1.2; flex: none; }
 .opp-card .oc-collapse:hover { color: var(--accent); border-color: transparent; }
 .opp-card .oc-company { font-weight: 700; }
+/* company favicon (cards, modal title, picker) */
+.co-ico { width: 16px; height: 16px; border-radius: 3px; object-fit: contain; vertical-align: -3px; margin-right: 5px; }
+.modal h2 .co-ico { width: 22px; height: 22px; vertical-align: -4px; margin-right: 8px; }
+.company-picker .co-ico { vertical-align: middle; margin-right: 0; }
 .opp-card .oc-role { color: var(--text); font-size: 13px; margin-top: 1px; }
 .opp-card .oc-meta { color: var(--muted); font-size: 12px; margin-top: 6px; display: flex; flex-wrap: wrap; gap: 4px 10px; }
 .opp-card .oc-contacts { display: flex; align-items: center; gap: 4px; margin-top: 8px; flex-wrap: wrap; }
