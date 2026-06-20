@@ -267,7 +267,11 @@ async function renderDetail(o) {
 
   // contact row actions
   $('contacts-list').querySelectorAll('[data-remove]').forEach((el) => {
-    el.onclick = async () => { try { const upd = await api(`/opportunities/${o.id}/contacts/${el.dataset.remove}`, { method: 'DELETE' }); await renderDetail(upd); refreshUnder(); } catch (e) { toast(e.message); } };
+    el.onclick = async () => {
+      const c = (o.contacts || []).find((x) => String(x.person_id) === el.dataset.remove);
+      if (!confirm(`Remove ${c?.name || 'this contact'} from this opportunity?\n\nThe contact itself stays in Sniper/Meddic — this only unlinks them here.`)) return;
+      try { const upd = await api(`/opportunities/${o.id}/contacts/${el.dataset.remove}`, { method: 'DELETE' }); await renderDetail(upd); refreshUnder(); } catch (e) { toast(e.message); }
+    };
   });
   $('contacts-list').querySelectorAll('[data-primary]').forEach((el) => {
     el.onclick = async () => {
