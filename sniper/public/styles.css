@@ -134,8 +134,13 @@ tr:hover .nick.add { opacity: 1; }
 .actions .spacer { flex: 1; }
 
 .companies-list { list-style: none; padding: 0; }
-.companies-list li { padding: 8px 12px; border-bottom: 1px solid var(--border); display: flex; gap: 10px; }
-.companies-list li .tier { color: var(--muted); }
+.companies-list li { padding: 10px 12px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 12px; }
+.companies-list .co-ico { width: 28px; height: 28px; border-radius: 5px; object-fit: contain; flex: none; }
+.companies-list .co-info { flex: 1; min-width: 0; }
+.companies-list .co-line { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.companies-list .tier-badge { font-size: 11px; color: var(--muted); border: 1px solid var(--border); border-radius: 999px; padding: 1px 8px; white-space: nowrap; }
+.companies-list .co-notes { font-size: 12px; line-height: 1.4; margin-top: 3px; }
+.companies-list .co-edit { flex: none; }
 
 .hidden { display: none !important; }
 .muted { color: var(--muted); }

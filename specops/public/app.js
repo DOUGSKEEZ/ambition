@@ -54,12 +54,9 @@ const typeBadge = (t) => (t ? `<span class="badge ${esc(t)}">${esc(t.replace('_'
 const medicLink = (pid) => `${location.protocol}//${location.hostname}:7701/?person=${pid}`;
 // Default opportunity-contact role label per contact type (so it isn't retyped on attach).
 const TYPE_ROLE = { hiring_manager: 'hiring manager', recruiter: 'recruiter', peer: 'peer' };
-// Locally-vendored company favicon (public/icons/companies/<slug>.png); hidden if none exists.
-const companySlug = (name) => (name || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
-const companyIcon = (name) => {
-  const slug = companySlug(name);
-  return slug ? `<img class="co-ico" src="icons/companies/${slug}.png" alt="" onerror="this.style.display='none'">` : '';
-};
+// Company favicon, served from Sniper's shared media (auto-fetched on company save in Sniper),
+// keyed by company id so a rename can't break it. Hidden if that company has no icon.
+const companyIcon = (id) => (id ? `<img class="co-ico" src="/media/company-icons/${id}.png" alt="" onerror="this.style.display='none'">` : '');
 
 // --- state ---
 let companies = [];
@@ -89,11 +86,13 @@ async function loadCompanies() {
 function updateCompanyIco() {
   const ico = $('company-ico');
   if (!ico) return;
-  const c = companyId === 'all' ? null : companies.find((x) => x.id === companyId);
-  if (!c) { ico.style.display = 'none'; return; }
+  if (companyId === 'all') { ico.style.display = 'none'; return; }
+  // Keep hidden until the new image actually loads, so switching to an iconless company
+  // doesn't flash a broken-image before onerror fires.
+  ico.style.display = 'none';
+  ico.onload = () => { ico.style.display = ''; };
   ico.onerror = () => { ico.style.display = 'none'; };
-  ico.src = `icons/companies/${companySlug(c.name)}.png`;
-  ico.style.display = '';
+  ico.src = `/media/company-icons/${companyId}.png`;
 }
 
 // Cache the in-flight promise (not just the result) so rapid opens coalesce into one request;
@@ -139,7 +138,7 @@ function card(o) {
   // Header is always shown (company + title) with a collapse chevron; the body is hidden when collapsed.
   const head = `<div class="oc-head">
     <div class="oc-titles">
-      <div class="oc-company">${companyIcon(o.company_name)}${esc(o.company_name)} ${outcome}</div>
+      <div class="oc-company">${companyIcon(o.company_id)}${esc(o.company_name)} ${outcome}</div>
       <div class="oc-role">${o.role_title ? esc(o.role_title) : '<span class="muted">untitled role</span>'}</div>
     </div>
     <button class="oc-collapse" data-collapse="${o.id}" title="${isCol ? 'Expand' : 'Collapse'}">${isCol ? '▸' : '▾'}</button>
@@ -252,7 +251,7 @@ async function renderDetail(o) {
 
   $('modal-body').classList.add('two-col');
   $('modal-body').innerHTML = `
-    <h2>${companyIcon(o.company_name)}${esc(o.company_name)}</h2>
+    <h2>${companyIcon(o.company_id)}${esc(o.company_name)}</h2>
     <div class="sub">${o.role_title ? esc(o.role_title) : 'untitled role'} · ${STAGE_LABEL[o.stage]}</div>
 
     <div class="mcol">

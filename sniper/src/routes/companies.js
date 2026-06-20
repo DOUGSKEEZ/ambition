@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { query } from '../db.js';
+import { saveCompanyFavicon } from '../favicon.js';
 
 const router = Router();
 
@@ -17,14 +18,15 @@ router.get('/', async (_req, res) => {
 // POST /companies — create (the only place companies are created).
 router.post('/', async (req, res) => {
   try {
-    const { name, tier, notes } = req.body || {};
+    const { name, tier, notes, website } = req.body || {};
     if (!name || !name.trim()) {
       return res.status(400).json({ error: 'name is required' });
     }
     const result = await query(
-      'INSERT INTO companies (name, tier, notes) VALUES ($1, $2, $3) RETURNING *',
-      [name.trim(), tier || null, notes || null]
+      'INSERT INTO companies (name, tier, notes, website) VALUES ($1, $2, $3, $4) RETURNING *',
+      [name.trim(), tier || null, notes || null, website || null]
     );
+    await saveCompanyFavicon(result.rows[0].id, result.rows[0].website);
     res.status(201).json(result.rows[0]);
   } catch (err) {
     if (err.code === '23505') {
@@ -38,15 +40,16 @@ router.post('/', async (req, res) => {
 // PUT /companies/:id — update (review UI only).
 router.put('/:id', async (req, res) => {
   try {
-    const { name, tier, notes } = req.body || {};
+    const { name, tier, notes, website } = req.body || {};
     if (!name || !name.trim()) {
       return res.status(400).json({ error: 'name is required' });
     }
     const result = await query(
-      'UPDATE companies SET name = $2, tier = $3, notes = $4 WHERE id = $1 RETURNING *',
-      [req.params.id, name.trim(), tier || null, notes || null]
+      'UPDATE companies SET name = $2, tier = $3, notes = $4, website = $5 WHERE id = $1 RETURNING *',
+      [req.params.id, name.trim(), tier || null, notes || null, website || null]
     );
     if (!result.rowCount) return res.status(404).json({ error: 'not found' });
+    await saveCompanyFavicon(result.rows[0].id, result.rows[0].website);
     res.json(result.rows[0]);
   } catch (err) {
     if (err.code === '23505') {

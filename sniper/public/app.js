@@ -271,13 +271,15 @@ async function loadCompanies() {
   ul.innerHTML = '';
   for (const c of companies) {
     const li = document.createElement('li');
-    const info = document.createElement('span');
-    info.style.flex = '1';
-    info.innerHTML = `<strong>${esc(c.name)}</strong> <span class="tier">${esc(c.tier)}</span> <span class="muted">${esc(c.notes)}</span>`;
-    const edit = document.createElement('button');
-    edit.textContent = 'Edit';
-    edit.onclick = () => beginEditCompany(c);
-    li.append(info, edit);
+    // Cache-bust (?t) so an edited website's new favicon shows on re-render without a hard reload.
+    li.innerHTML = `
+      <img class="co-ico" src="/media/company-icons/${c.id}.png?t=${Date.now()}" alt="" onerror="this.style.visibility='hidden'">
+      <div class="co-info">
+        <div class="co-line"><strong>${esc(c.name)}</strong>${c.tier ? `<span class="tier-badge">${esc(c.tier)}</span>` : ''}</div>
+        ${c.notes ? `<div class="co-notes muted">${esc(c.notes)}</div>` : ''}
+      </div>
+      <button class="co-edit">Edit</button>`;
+    li.querySelector('.co-edit').onclick = () => beginEditCompany(c);
     ul.appendChild(li);
   }
 }
@@ -287,6 +289,7 @@ function beginEditCompany(c) {
   $('c-name').value = c.name || '';
   $('c-tier').value = c.tier || '';
   $('c-notes').value = c.notes || '';
+  $('c-website').value = c.website || '';
   $('c-add').textContent = 'Save changes';
   $('c-cancel').classList.remove('hidden');
   $('c-name').focus();
@@ -294,7 +297,7 @@ function beginEditCompany(c) {
 
 function cancelEditCompany() {
   editingCompanyId = null;
-  $('c-name').value = $('c-tier').value = $('c-notes').value = '';
+  $('c-name').value = $('c-tier').value = $('c-notes').value = $('c-website').value = '';
   $('c-add').textContent = 'Add company';
   $('c-cancel').classList.add('hidden');
 }
@@ -317,6 +320,7 @@ async function submitCompany() {
     name,
     tier: $('c-tier').value.trim() || null,
     notes: $('c-notes').value.trim() || null,
+    website: $('c-website').value.trim() || null,
   });
   if (editingCompanyId) {
     await api(`/companies/${editingCompanyId}`, {
