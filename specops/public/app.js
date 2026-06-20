@@ -228,18 +228,6 @@ async function renderDetail(o) {
       </div>
       <div id="fm-preview" class="fm-preview hidden"></div>
       <div class="field"><label>Opportunity notes</label><textarea data-f="notes" placeholder="Prep, threads, interview context…">${esc(o.notes)}</textarea></div>
-    </div>
-
-    <div class="mcol">
-      ${primary ? `<div class="field">
-        <label>Primary HM notes — ${esc(primary.name)} <span class="muted" style="text-transform:none;letter-spacing:0">· from Medic, read-only</span></label>
-        <div class="hm-notes">
-          ${primary.my_notes ? `<div class="note-block">${esc(primary.my_notes)}</div>` : ''}
-          ${primary.ai_summary ? `<div class="note-block ai"><span class="muted">AI summary</span>\n${esc(primary.ai_summary)}</div>` : ''}
-          ${(!primary.my_notes && !primary.ai_summary) ? '<span class="muted" style="font-size:13px">No notes on this contact yet — add them in Medic.</span>' : ''}
-          <a class="link" href="${medicLink(primary.person_id)}" target="_blank" rel="noopener"><img class="ic14" src="icons/meddic-20.png" alt=""> Edit in Medic ↗</a>
-        </div>
-      </div>` : ''}
 
       <div class="field">
         <label>Target contacts (HMs — guessing is fine)</label>
@@ -252,6 +240,18 @@ async function renderDetail(o) {
           <button class="sm" id="add-contact-btn"${addable.length ? '' : ' disabled'}>+ Add</button>
         </div>
       </div>
+    </div>
+
+    <div class="mcol">
+      ${primary ? `<div class="field">
+        <label>Primary HM notes — ${esc(primary.name)} <span class="muted" style="text-transform:none;letter-spacing:0">· from Medic, read-only</span></label>
+        <div class="hm-notes">
+          ${primary.my_notes ? `<div class="note-block">${esc(primary.my_notes)}</div>` : ''}
+          ${primary.ai_summary ? `<div class="note-block ai"><span class="muted">AI summary</span>\n${esc(primary.ai_summary)}</div>` : ''}
+          ${(!primary.my_notes && !primary.ai_summary) ? '<span class="muted" style="font-size:13px">No notes on this contact yet — add them in Medic.</span>' : ''}
+          <a class="link" href="${medicLink(primary.person_id)}" target="_blank" rel="noopener"><img class="ic14" src="icons/meddic-20.png" alt=""> Edit in Medic ↗</a>
+        </div>
+      </div>` : '<div class="field"><label>Primary HM notes</label><div class="hm-notes muted" style="font-size:13px">Attach a primary HM (left) and their Medic notes show here.</div></div>'}
     </div>
 
     <div class="modal-actions">
