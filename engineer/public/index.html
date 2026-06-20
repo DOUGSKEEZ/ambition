@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>engineer — Analytics</title>
+  <script>
+    // Apply saved/system theme before paint to avoid a flash.
+    (function () {
+      var t = localStorage.getItem('theme');
+      if (!t) t = window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', t);
+    })();
+  </script>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header>
+    <div class="brand">⚡️ Ambition CRM</div>
+    <div class="page-title">
+      <div class="pt-name">🔧 ENGINEER</div>
+      <div class="pt-desc">Analytics &amp; metrics</div>
+    </div>
+    <div class="header-right">
+      <a id="link-medic" class="linkbtn" target="_blank" rel="noopener">🩹 Medic ↗</a>
+      <a id="link-sniper" class="linkbtn" target="_blank" rel="noopener">🎯 Sniper ↗</a>
+      <button id="theme-toggle" title="Toggle light/dark">🌙</button>
+    </div>
+  </header>
+
+  <main>
+    <nav class="page-nav">
+      <div class="tabs">
+        <button id="tab-outbound" class="active">Outbound</button>
+      </div>
+      <span class="spacer"></span>
+      <div class="company-picker">
+        <label for="company">Company</label>
+        <select id="company"></select>
+      </div>
+    </nav>
+
+    <section id="view-outbound">
+      <div class="toolbar">
+        <div class="group">
+          <label>Segment by</label>
+          <span class="seg" id="seg-segment">
+            <button data-v="type" class="active">Type</button>
+            <button data-v="company">Company</button>
+          </span>
+        </div>
+        <div class="group">
+          <label>Bucket</label>
+          <span class="seg" id="seg-granularity">
+            <button data-v="day" class="active">Day</button>
+            <button data-v="week">Week</button>
+          </span>
+        </div>
+        <span class="spacer"></span>
+        <span class="muted" id="range-note"></span>
+      </div>
+
+      <div class="stat-strip" id="stat-strip"></div>
+
+      <div class="card">
+        <div class="chart-wrap"><canvas id="outbound-chart"></canvas></div>
+      </div>
+      <div id="outbound-empty" class="empty hidden">No sent outreach in this view yet — mark a step <em>sent</em> in Medic to see it here.</div>
+    </section>
+  </main>
+
+  <div id="toast" class="toast hidden"></div>
+
+  <script src="vendor/chart.umd.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

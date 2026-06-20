@@ -21,9 +21,9 @@ idea blocked on schema that doesn't exist yet.
 
 The headline charts Doug actually asked for, all computable from current tables.
 
-- `[meddic]` `medium` **Outbound flow by contact type** — touches sent over time, segmented HM / recruiter /
-  peer, **pivotable by company**. From `person_campaign_steps.sent` + `sent_at`, joined to `people.type`
-  and `company_id`. *Build this first.*
+- ✅ **SHIPPED (2026-06-19)** — **Outbound flow by contact type** — touches sent over time, stacked by
+  HM / recruiter / peer **or** by company, with a day/week toggle and a company filter. Lives in the
+  Engineer app (`/metrics/outbound`), bucketed to Doug's local day via `AT TIME ZONE`. *Was: build first.*
 - `[meddic]` `medium` **Sequence-velocity funnel** — how fast a lead moves `captured_at` → run `started_at`
   → step 1 / 2 / 3 `sent_at`, with time-between-stages. A cohort funnel for the *outreach* half (the
   post-reply half belongs to SpecOps).

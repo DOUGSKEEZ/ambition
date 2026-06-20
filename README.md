@@ -10,7 +10,7 @@ The metaphor is a game squad. Five independently hosted roles:
 |------|-----|-----|--------|
 | 🎯 **Sniper** | [`sniper/`](sniper/) | Acquire targets — capture a LinkedIn profile into a reviewed contact record with AI summary | **Shipped** · :7700 |
 | 🩹 **Medic** | [`meddic/`](meddic/) | Keep the campaign alive — run customized outreach sequences and track every touch | **Shipped** · :7701 |
-| 🔧 **Engineer** | [`engineer/`](engineer/) | Metrics for optimization — a backlog of workflow / tooling ideas for the CRM | **Planned** |
+| 🔧 **Engineer** | [`engineer/`](engineer/) | Metrics for optimization — charts of my outbound flow (by type & company) to tune the campaign | **Shipped** · :7702 |
 | ⭐ **Commander** | [`commander/`](commander/) | Strategic Company Overview — aggregate target company news, events, and other informationinto one strategic view | **Planned** |
 | 🎖 **SpecOps** | [`specops/`](specops/) | Convert & prep — track live opportunities (comp, location, HM, stage) once an HM engages, and prep for the screen/interview | **Planned** |
 
@@ -51,7 +51,7 @@ Shipped 2026-05-31. Lives in [`meddic/`](meddic/) (the directory keeps the origi
 
 ## 🔧 Engineer — Analytics/Metrics
 
-Planned Metrics and Analytics to track my effectiveness. See [`engineer/engineer-plan.md`](engineer/engineer-plan.md) for the running backlog. 
+Charts and metrics over what the squad does, so I can tune the campaign on data instead of vibes. **Shipped:** an *Outbound* dashboard — touches over time, stacked by contact type (HM / recruiter / peer) or by company, with a day/week toggle and a company filter. (Read-only over the shared DB; charts render with a locally-vendored Chart.js, nothing leaves the box.) What's next — engagement/outcome tracking, the conversion funnel, a daily momentum read — lives in [`engineer/engineer-plan.md`](engineer/engineer-plan.md).
 
 ## ⭐ Commander — the strategic view
 
@@ -65,15 +65,16 @@ Where Medic runs top-of-funnel outreach, SpecOps takes over once a hiring manage
 
 ## Quick start
 
-Both shipped apps are Node 22 ESM + Express serving a vanilla-JS SPA, backed by a shared Postgres database (named `sniper`). Bring up both dev servers in one tmux session:
+The shipped apps are Node 22 ESM + Express serving a vanilla-JS SPA, backed by a shared Postgres database (named `sniper`). Bring up all dev servers in one tmux session:
 
 ```bash
-./start-ambition.sh      # sniper :7700 + meddic :7701, one tmux window each
-./kill-ambition.sh       # stop both
+./start-ambition.sh      # sniper :7700 + meddic :7701 + engineer :7702, one window each
+./kill-ambition.sh       # stop all
 ```
 
 - Sniper review UI → <http://localhost:7700/>
 - Medic pipeline → <http://localhost:7701/>
+- Engineer analytics → <http://localhost:7702/>
 
 First-time setup for each app is in its own README (`npm install`, `createdb sniper` once, `npm run migrate`, `.env`). Medic shares Sniper's `sniper` database and serves Sniper's contact photos, so set Sniper up first.
 
@@ -88,7 +89,7 @@ First-time setup for each app is in its own README (`npm install`, `createdb sni
 ambition/
 ├── sniper/        🎯 LinkedIn capture → enrichment → review  (shipped)
 ├── meddic/        🩹 campaign engine & outreach tracker      (shipped)
-├── engineer/      🔧 analytics & metrics backlog              (planned)
+├── engineer/      🔧 analytics dashboard (outbound charts)    (shipped :7702)
 ├── commander/     ⭐ company rollup view                      (planned)
 ├── specops/       🎖 opportunity tracking & interview prep    (planned)
 ├── start-ambition.sh / kill-ambition.sh
