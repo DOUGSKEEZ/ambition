@@ -12,7 +12,7 @@ The metaphor is a game squad. Five independently hosted roles:
 | 🩹 **Medic** | [`meddic/`](meddic/) | Keep the campaign alive — run customized outreach sequences and track every touch | **Shipped** · :7701 |
 | 🔧 **Engineer** | [`engineer/`](engineer/) | Metrics for optimization — charts of my outbound flow (by type & company) to tune the campaign | **Shipped** · :7702 |
 | ⭐ **Commander** | [`commander/`](commander/) | Strategic Company Overview — aggregate target company news, events, and other informationinto one strategic view | **Planned** |
-| 🎖 **SpecOps** | [`specops/`](specops/) | Convert & prep — track live opportunities (comp, location, HM, stage) once an HM engages, and prep for the screen/interview | **Planned** |
+| 🎖 **SpecOps** | [`specops/`](specops/) | Convert & prep — a Kanban board of live opportunities (comp, location, target HMs, stage) once an HM engages | **Shipped** · :7703 |
 
 ---
 
@@ -59,7 +59,7 @@ This is the page that rolls up the **target companies** selected — the company
 
 ## 🎖 SpecOps — convert & prep
 
-Where Medic runs top-of-funnel outreach, SpecOps takes over once a hiring manager engages: it tracks the live **opportunity** (job posting, comp range, location, the HM — who *is* the champion of that application — and the stage from screen to offer) and preps me for the interview. It introduces the one entity the rest of the system lacks — the Application/Opportunity — which is also the correlation backbone Engineer charts against. See [`specops/specops-plan.md`](specops/specops-plan.md).
+Where Medic runs top-of-funnel outreach, SpecOps takes over once a hiring manager engages. **Shipped:** a **Kanban board** of opportunities, dragged across the pipeline (Outreach → HM Reply → Screen → Interview → Onsite → Offer → Closed). Each opportunity anchors on a company (the only required field — a role may be unlisted, so the title is a freeform placeholder and the posting URL is optional), tracks comp / location / first-message & first-reply dates / notes, and links **multiple target HMs** (often a guess) with one markable as primary — the HM *is* the champion of that application. It introduces the **Opportunity** entity the rest of the system lacked, which is also the correlation backbone Engineer will chart against. Interview-prep assembly is the next iteration. See [`specops/specops-plan.md`](specops/specops-plan.md).
 
 ---
 
@@ -68,15 +68,16 @@ Where Medic runs top-of-funnel outreach, SpecOps takes over once a hiring manage
 The shipped apps are Node 22 ESM + Express serving a vanilla-JS SPA, backed by a shared Postgres database (named `sniper`). Bring up all dev servers in one tmux session:
 
 ```bash
-./start-ambition.sh      # sniper :7700 + meddic :7701 + engineer :7702, one window each
+./start-ambition.sh      # sniper :7700 + meddic :7701 + engineer :7702 + specops :7703, one window each
 ./kill-ambition.sh       # stop all
 ```
 
 - Sniper review UI → <http://localhost:7700/>
 - Medic pipeline → <http://localhost:7701/>
 - Engineer analytics → <http://localhost:7702/>
+- SpecOps board → <http://localhost:7703/>
 
-First-time setup for each app is in its own README (`npm install`, `createdb sniper` once, `npm run migrate`, `.env`). Medic shares Sniper's `sniper` database and serves Sniper's contact photos, so set Sniper up first.
+First-time setup for each app is `npm install` + `.env` (and `npm run migrate` for the apps that own tables — Sniper, Medic, SpecOps). All share Sniper's `sniper` database; Medic and SpecOps also serve Sniper's contact photos, so set Sniper up first.
 
 ## Shared infrastructure
 
@@ -91,6 +92,6 @@ ambition/
 ├── meddic/        🩹 campaign engine & outreach tracker      (shipped)
 ├── engineer/      🔧 analytics dashboard (outbound charts)    (shipped :7702)
 ├── commander/     ⭐ company rollup view                      (planned)
-├── specops/       🎖 opportunity tracking & interview prep    (planned)
+├── specops/       🎖 opportunity Kanban board                 (shipped :7703)
 ├── start-ambition.sh / kill-ambition.sh
 ```

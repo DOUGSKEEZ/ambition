@@ -41,8 +41,15 @@ matching proof points, likely questions. Scope TBD; the data model above comes f
 
 ## Status
 
-Reserved directory; nothing built. Opportunity data would join the shared `sniper` Postgres DB (references
-`companies` and `people`). Engineer visualizes the funnel/correlations once this entity exists; see
+**SHIPPED 2026-06-19** — Node + Express + vanilla-JS SPA on **:7703**, a Kanban board of opportunities.
+Owns two tables in the shared `sniper` DB (`opportunities`, `opportunity_contacts`; migration
+`database/migrations/001_opportunities.sql`). Cards drag across the 7 stages; a create/edit modal manages
+the fields and attaches multiple target HMs (one primary). The chosen model differs from the original
+sketch in two ways, per Doug's input: **multiple guessed HMs per role** (many-to-many join table, not a
+single `hiring_manager_id`) and an **optional/placeholder job listing** (only the company is required).
+
+Next iteration: the **interview-prep ("Support") half** above, and Engineer charts over this data (the
+funnel's post-Responded stages + comp/location/stage correlations). See
 [`../engineer/engineer-plan.md`](../engineer/engineer-plan.md).
 
 ## Open questions

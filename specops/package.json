@@ -1,0 +1,23 @@
+{
+  "name": "specops",
+  "version": "1.0.0",
+  "description": "Opportunity tracking & interview prep — the post-reply pipeline over the shared CRM",
+  "type": "module",
+  "main": "src/server.js",
+  "author": "Doug",
+  "license": "MIT",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "migrate": "node src/migrate.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "pg": "^8.12.0"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  }
+}

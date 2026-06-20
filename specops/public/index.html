@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>specops — Opportunities</title>
+  <script>
+    (function () {
+      var t = localStorage.getItem('theme');
+      if (!t) t = window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', t);
+    })();
+  </script>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header>
+    <div class="brand">⚡️ Ambition CRM</div>
+    <div class="page-title">
+      <div class="pt-name">🎖 SPECOPS</div>
+      <div class="pt-desc">Opportunity pipeline</div>
+    </div>
+    <div class="header-right">
+      <a id="link-medic" class="linkbtn" target="_blank" rel="noopener">🩹 Medic ↗</a>
+      <a id="link-engineer" class="linkbtn" target="_blank" rel="noopener">🔧 Engineer ↗</a>
+      <button id="theme-toggle" title="Toggle light/dark">🌙</button>
+    </div>
+  </header>
+
+  <main>
+    <div class="toolbar">
+      <button id="new-opp" class="primary">+ New opportunity</button>
+      <span class="spacer"></span>
+      <div class="company-picker">
+        <label for="company">Company</label>
+        <select id="company"></select>
+      </div>
+      <span class="queue-note" id="board-note"></span>
+    </div>
+
+    <div id="board" class="board"></div>
+    <div id="board-empty" class="empty hidden">No opportunities yet — click <strong>+ New opportunity</strong> to start tracking a role.</div>
+  </main>
+
+  <!-- Modal overlay (create / edit an opportunity); filled by JS -->
+  <div id="modal" class="modal-overlay hidden">
+    <div class="modal" id="modal-body"></div>
+  </div>
+
+  <div id="toast" class="toast hidden"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
