@@ -4,6 +4,7 @@ const $ = (id) => document.getElementById(id);
 // --- Theme + cross-app links (shared chrome) ---
 (function initChrome() {
   const host = location.hostname;
+  const sniper = $('link-sniper'); if (sniper) sniper.href = `${location.protocol}//${host}:7700/`;
   const medic = $('link-medic'); if (medic) medic.href = `${location.protocol}//${host}:7701/`;
   const eng = $('link-engineer'); if (eng) eng.href = `${location.protocol}//${host}:7702/`;
   const btn = $('theme-toggle');
