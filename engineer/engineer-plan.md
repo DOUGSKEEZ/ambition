@@ -24,6 +24,11 @@ The headline charts Doug actually asked for, all computable from current tables.
 - ✅ **SHIPPED (2026-06-19)** — **Outbound flow by contact type** — touches sent over time, stacked by
   HM / recruiter / peer **or** by company, with a day/week toggle and a company filter. Lives in the
   Engineer app (`/metrics/outbound`), bucketed to Doug's local day via `AT TIME ZONE`. *Was: build first.*
+- ✅ **SHIPPED (2026-06-19)** — **Contact-lifecycle funnel** — Captured → Active → In campaign → Touched →
+  Responded, stacked by type/company with a company filter and per-stage conversion (`/metrics/funnel`).
+  Stages are strictly nested (cumulative flags) so the funnel can't invert. Snapshot of the *current active
+  pipeline* — "Touched" here = sent on the active run, stricter than Outbound's all-time "sent". The empty
+  stage after Responded is the SpecOps **Opportunity** entity (not built).
 - `[meddic]` `medium` **Sequence-velocity funnel** — how fast a lead moves `captured_at` → run `started_at`
   → step 1 / 2 / 3 `sent_at`, with time-between-stages. A cohort funnel for the *outreach* half (the
   post-reply half belongs to SpecOps).

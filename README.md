@@ -51,7 +51,7 @@ Shipped 2026-05-31. Lives in [`meddic/`](meddic/) (the directory keeps the origi
 
 ## 🔧 Engineer — Analytics/Metrics
 
-Charts and metrics over what the squad does, so I can tune the campaign on data instead of vibes. **Shipped:** an *Outbound* dashboard — touches over time, stacked by contact type (HM / recruiter / peer) or by company, with a day/week toggle and a company filter. (Read-only over the shared DB; charts render with a locally-vendored Chart.js, nothing leaves the box.) What's next — engagement/outcome tracking, the conversion funnel, a daily momentum read — lives in [`engineer/engineer-plan.md`](engineer/engineer-plan.md).
+Charts and metrics over what the squad does, so I can tune the campaign on data instead of vibes. **Shipped — two views:** *Outbound* (touches over time, stacked by contact type or company, day/week toggle, company filter) and *Funnel* (the contact lifecycle Captured → Active → In&nbsp;campaign → Touched → Responded, stacked by type/company, with per-stage conversions — the empty next rung is the SpecOps/Opportunity stage). (Read-only over the shared DB; charts render with a locally-vendored Chart.js, nothing leaves the box.) What's next — engagement/outcome tracking, a daily momentum read — lives in [`engineer/engineer-plan.md`](engineer/engineer-plan.md).
 
 ## ⭐ Commander — the strategic view
 

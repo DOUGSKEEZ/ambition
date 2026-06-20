@@ -15,7 +15,7 @@ const $ = (id) => document.getElementById(id);
       document.documentElement.setAttribute('data-theme', next);
       localStorage.setItem('theme', next);
       sync();
-      draw(); // re-render the chart so axis/legend colours track the theme
+      redrawCurrent(); // re-render the active view's chart so colours track the theme
     };
   }
 })();
@@ -50,6 +50,10 @@ const typeRank = (k) => { const j = TYPE_ORDER.indexOf(k); return j < 0 ? TYPE_O
 // red/green/blue) so the Type and Company views don't read as related. Cycles if needed.
 const COMPANY_PALETTE = ['#a78bfa', '#22d3ee', '#fb923c', '#e879f9', '#84cc16', '#38bdf8', '#f59e0b', '#2dd4bf', '#fb7185', '#c084fc', '#60a5fa', '#4ade80'];
 
+// Contact-lifecycle funnel stages, in order, with display labels.
+const STAGE_ORDER = ['captured', 'active', 'in_campaign', 'touched', 'responded'];
+const STAGE_LABEL = { captured: 'Captured', active: 'Active', in_campaign: 'In campaign', touched: 'Touched', responded: 'Responded' };
+
 // --- state ---
 let companies = [];
 let companyId = 'all';      // 'all' or a company id
@@ -59,6 +63,14 @@ let current = null;          // last /metrics/outbound response actually rendere
 let chart = null;
 let reqSeq = 0;              // monotonic token — guards against out-of-order responses
 let appliedCompanyId = 'all'; // the companyId reflected in `current` (for control re-sync)
+
+let currentView = 'outbound'; // 'outbound' | 'funnel'
+// Funnel view has its own segment + render state, independent of Outbound's.
+let fnSegment = 'type';
+let fnCurrent = null;
+let fnChart = null;
+let fnSeq = 0;
+let fnAppliedCompanyId = 'all';
 
 // ---------- bootstrap ----------
 async function loadCompanies() {
@@ -136,8 +148,9 @@ function pivot(rows, seg) {
 
 function periodLabel(p) {
   const d = new Date(`${p}T00:00:00`);
-  const md = d.toLocaleDateString('en-US', { month: 'short', day: '2-digit' });
-  return granularity === 'week' ? `Wk ${md}` : md;
+  if (granularity === 'week') return `Wk ${d.toLocaleDateString('en-US', { month: 'short', day: '2-digit' })}`;
+  // Day view leads with the weekday (e.g. "Thu, Jun 04") so weekday cadence is legible.
+  return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: '2-digit' });
 }
 
 function renderStats(piv) {
@@ -188,6 +201,117 @@ function draw() {
   });
 }
 
+// ---------- Funnel view ----------
+async function loadFunnel() {
+  const seq = ++fnSeq;
+  const reqCompanyId = companyId;
+  const parts = [`segment=${fnSegment}`];
+  if (reqCompanyId !== 'all') parts.push(`company_id=${reqCompanyId}`);
+  let resp;
+  try {
+    resp = await api(`/metrics/funnel?${parts.join('&')}`);
+  } catch (e) {
+    if (seq === fnSeq) { toast(e.message); syncFunnelControls(); }
+    return;
+  }
+  if (seq !== fnSeq) return;
+  fnCurrent = resp;
+  fnAppliedCompanyId = reqCompanyId;
+  drawFunnel();
+  syncFunnelControls();
+}
+
+function syncFunnelControls() {
+  fnSegment = fnCurrent ? fnCurrent.segment : fnSegment;
+  setSegActive('fn-seg-segment', fnSegment);
+  // companyId is the shared global picker; keep it pointing at what's rendered.
+  companyId = fnAppliedCompanyId;
+  $('company').value = fnAppliedCompanyId === 'all' ? 'all' : String(fnAppliedCompanyId);
+}
+
+// Pivot funnel rows [{stage, seg_key, count}] into ordered stages + one dataset per segment
+// key. Like pivot() but the buckets are the fixed lifecycle stages, not dates.
+function funnelPivot(rows, seg) {
+  // Always show the full fixed lifecycle axis (zero-filling stages with no rows) so the funnel
+  // and the adjacent-stage conversion math stay meaningful even when a stage is empty.
+  const stages = STAGE_ORDER.slice();
+  const sIdx = Object.fromEntries(stages.map((s, i) => [s, i]));
+  const keys = [...new Set(rows.map((r) => r.seg_key))];
+  const totals = {};
+  for (const r of rows) totals[r.seg_key] = (totals[r.seg_key] || 0) + r.count;
+  keys.sort(seg === 'type'
+    ? (a, b) => typeRank(a) - typeRank(b)
+    : (a, b) => totals[b] - totals[a]);
+  const series = keys.map((k, i) => {
+    const data = new Array(stages.length).fill(0);
+    for (const r of rows) if (r.seg_key === k) data[sIdx[r.stage]] = r.count;
+    const meta = seg === 'type' ? (TYPE_META[k] || { label: k, color: TYPE_META.unknown.color }) : null;
+    return { label: meta ? meta.label : k, color: meta ? meta.color : COMPANY_PALETTE[i % COMPANY_PALETTE.length], data };
+  });
+  const stageTotals = stages.map((_, i) => series.reduce((a, s) => a + s.data[i], 0));
+  return { stages, stageLabels: stages.map((s) => STAGE_LABEL[s] || s), series, stageTotals };
+}
+
+// Stat strip: each stage's headcount + its conversion from the previous stage, so the
+// leakiest step is obvious at a glance.
+function renderFunnelStats(piv) {
+  const strip = $('fn-stat-strip');
+  strip.innerHTML = piv.stages.map((_, i) => {
+    const tot = piv.stageTotals[i];
+    const prev = i > 0 ? piv.stageTotals[i - 1] : null;
+    // Stages are strictly nested server-side, so this ratio is always 0–100%. Guard prev=0.
+    const sub = i === 0 ? 'sourced' : (prev > 0 ? `${Math.round((100 * tot) / prev)}% of prev` : '—');
+    const klass = i === 0 ? 'stat total' : 'stat';
+    return `<div class="${klass}"><div class="v">${tot}</div><div class="k">${esc(piv.stageLabels[i])}</div><div class="k" style="text-transform:none;letter-spacing:0">${sub}</div></div>`;
+  }).join('');
+}
+
+function drawFunnel() {
+  if (!fnCurrent) return;
+  const piv = funnelPivot(fnCurrent.rows, fnCurrent.segment);
+  const hasData = (piv.stageTotals[0] || 0) > 0;
+  $('funnel-empty').classList.toggle('hidden', hasData);
+  renderFunnelStats(piv);
+
+  const grid = cssVar('--border');
+  const tick = cssVar('--muted');
+  if (fnChart) { fnChart.destroy(); fnChart = null; }
+  if (!hasData) return;
+
+  fnChart = new Chart($('funnel-chart').getContext('2d'), {
+    type: 'bar',
+    data: {
+      labels: piv.stageLabels,
+      datasets: piv.series.map((s) => ({ label: s.label, data: s.data, backgroundColor: s.color, borderWidth: 0, borderRadius: 3 })),
+    },
+    options: {
+      indexAxis: 'y', // horizontal bars read as a funnel top-to-bottom
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: false,
+      scales: {
+        x: { stacked: true, beginAtZero: true, grid: { color: grid }, ticks: { color: tick, precision: 0 } },
+        y: { stacked: true, grid: { color: grid }, ticks: { color: tick } },
+      },
+      plugins: {
+        legend: { labels: { color: tick, boxWidth: 12 } },
+        tooltip: { mode: 'index', intersect: false },
+      },
+    },
+  });
+}
+
+// ---------- view switching ----------
+function show(view) {
+  currentView = view;
+  $('view-outbound').classList.toggle('hidden', view !== 'outbound');
+  $('view-funnel').classList.toggle('hidden', view !== 'funnel');
+  $('tab-outbound').classList.toggle('active', view === 'outbound');
+  $('tab-funnel').classList.toggle('active', view === 'funnel');
+}
+function reloadCurrent() { return currentView === 'outbound' ? loadOutbound() : loadFunnel(); }
+function redrawCurrent() { return currentView === 'outbound' ? draw() : drawFunnel(); }
+
 // ---------- wiring ----------
 function wireSeg(id, onPick) {
   $(id).querySelectorAll('button').forEach((b) => {
@@ -199,7 +323,10 @@ function wireSeg(id, onPick) {
 }
 wireSeg('seg-segment', (v) => { segment = v; loadOutbound(); });
 wireSeg('seg-granularity', (v) => { granularity = v; loadOutbound(); });
-$('company').onchange = (e) => { companyId = e.target.value === 'all' ? 'all' : Number(e.target.value); loadOutbound(); };
+wireSeg('fn-seg-segment', (v) => { fnSegment = v; loadFunnel(); });
+$('tab-outbound').onclick = () => { show('outbound'); loadOutbound(); };
+$('tab-funnel').onclick = () => { show('funnel'); loadFunnel(); };
+$('company').onchange = (e) => { companyId = e.target.value === 'all' ? 'all' : Number(e.target.value); reloadCurrent(); };
 
 (async function init() {
   try {

@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>engineer — Analytics</title>
+  <link rel="icon" type="image/png" href="icons/wrench.png" />
   <script>
     // Apply saved/system theme before paint to avoid a flash.
     (function () {
@@ -18,7 +19,7 @@
   <header>
     <div class="brand">⚡️ Ambition CRM</div>
     <div class="page-title">
-      <div class="pt-name">🔧 ENGINEER</div>
+      <div class="pt-name"><img class="ico" src="icons/wrench.png" alt="" /> ENGINEER</div>
       <div class="pt-desc">Analytics &amp; metrics</div>
     </div>
     <div class="header-right">
@@ -32,6 +33,7 @@
     <nav class="page-nav">
       <div class="tabs">
         <button id="tab-outbound" class="active">Outbound</button>
+        <button id="tab-funnel">Funnel</button>
       </div>
       <span class="spacer"></span>
       <div class="company-picker">
@@ -66,6 +68,27 @@
         <div class="chart-wrap"><canvas id="outbound-chart"></canvas></div>
       </div>
       <div id="outbound-empty" class="empty hidden">No sent outreach in this view yet — mark a step <em>sent</em> in Medic to see it here.</div>
+    </section>
+
+    <section id="view-funnel" class="hidden">
+      <div class="toolbar">
+        <div class="group">
+          <label>Stack by</label>
+          <span class="seg" id="fn-seg-segment">
+            <button data-v="type" class="active">Type</button>
+            <button data-v="company">Company</button>
+          </span>
+        </div>
+        <span class="spacer"></span>
+        <span class="muted">Captured → Active → In&nbsp;campaign → Touched → Responded. Next stage (Opportunity) is SpecOps — not built yet.</span>
+      </div>
+
+      <div class="stat-strip" id="fn-stat-strip"></div>
+
+      <div class="card">
+        <div class="chart-wrap"><canvas id="funnel-chart"></canvas></div>
+      </div>
+      <div id="funnel-empty" class="empty hidden">No contacts yet — import some in Sniper to see the funnel.</div>
     </section>
   </main>
 
