@@ -34,7 +34,7 @@ const jsonPut = (path, obj) => api(path, { method: 'PUT', headers: { 'Content-Ty
 const jsonPost = (path, obj) => api(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(obj) });
 
 const STAGES = [
-  { key: 'lead', label: 'Lead' },
+  { key: 'lead', label: 'Initial' },
   { key: 'outreach', label: 'Outreach' },
   { key: 'hm_reply', label: 'HM Reply' },
   { key: 'screen', label: 'Screen' },
