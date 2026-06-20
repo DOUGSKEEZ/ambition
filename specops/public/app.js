@@ -249,7 +249,7 @@ async function renderDetail(o) {
           ${primary.my_notes ? `<div class="note-block">${esc(primary.my_notes)}</div>` : ''}
           ${primary.ai_summary ? `<div class="note-block ai"><span class="muted">AI summary</span>\n${esc(primary.ai_summary)}</div>` : ''}
           ${(!primary.my_notes && !primary.ai_summary) ? '<span class="muted" style="font-size:13px">No notes on this contact yet — add them in Medic.</span>' : ''}
-          <a class="link" href="${medicLink(primary.person_id)}" target="_blank" rel="noopener"><img class="ic14" src="icons/meddic-20.png" alt=""> Edit in Medic ↗</a>
+          <a class="link" href="${medicLink(primary.person_id)}" target="_blank" rel="noopener"><img class="ic14" src="icons/meddic-20.png" alt=""> Edit in Meddic ↗</a>
         </div>
       </div>` : '<div class="field"><label>Primary HM notes</label><div class="hm-notes muted" style="font-size:13px">Attach a primary HM (left) and their Medic notes show here.</div></div>'}
     </div>
@@ -316,7 +316,7 @@ function contactRow(c) {
       <div class="cr-title">${typeBadge(c.type)} ${c.role ? esc(c.role) : ''}${c.title ? ' · ' + esc(c.title) : ''}</div>
     </div>
     <span class="spacer"></span>
-    <a class="link" href="${medicLink(c.person_id)}" target="_blank" rel="noopener"><img class="ic14" src="icons/meddic-20.png" alt=""> Medic ↗</a>
+    <a class="link medic-link" href="${medicLink(c.person_id)}" target="_blank" rel="noopener" title="Open in Meddic"><span class="ml-top"><img class="ic14" src="icons/meddic-20.png" alt="">↗</span><span class="ml-label">Meddic</span></a>
     ${c.is_primary ? '' : `<a class="link" data-primary="${c.person_id}">make primary</a>`}
     <a class="link" data-remove="${c.person_id}">remove</a>
   </div>`;
