@@ -4,7 +4,7 @@ A small squad of local tools _leveraging AI_ for running a sharp, high-volume, *
 Each app owns one job — recon, outreach, ideas, command — and they share one Postgres database and one set of LLM endpoints.  
 LLM calls go either to my local CLio LLM or a 3rd party Foundation Model.
 
-The metaphor is a game squad. Four independently hosted roles:
+The metaphor is a game squad. Five independently hosted roles:
 
 | Role | App | Job | Status |
 |------|-----|-----|--------|
@@ -12,6 +12,7 @@ The metaphor is a game squad. Four independently hosted roles:
 | 🩹 **Medic** | [`meddic/`](meddic/) | Keep the campaign alive — run customized outreach sequences and track every touch | **Shipped** · :7701 |
 | 🔧 **Engineer** | [`engineer/`](engineer/) | Metrics for optimization — a backlog of workflow / tooling ideas for the CRM | **Planned** |
 | ⭐ **Commander** | [`commander/`](commander/) | Strategic Company Overview — aggregate target company news, events, and other informationinto one strategic view | **Planned** |
+| 🎖 **SpecOps** | [`specops/`](specops/) | Convert & prep — track live opportunities (comp, location, HM, stage) once an HM engages, and prep for the screen/interview | **Planned** |
 
 ---
 
@@ -56,6 +57,10 @@ Planned Metrics and Analytics to track my effectiveness. See [`engineer/engineer
 
 This is the page that rolls up the **target companies** selected — the company-level view above the individual contacts. Where Sniper and Medic operate one person at a time, the Commander answers "which companies am I working, how deep am I into each, and where should I push next?" Its home is [`commander/`](commander/); see the stub there for the current sketch.
 
+## 🎖 SpecOps — convert & prep
+
+Where Medic runs top-of-funnel outreach, SpecOps takes over once a hiring manager engages: it tracks the live **opportunity** (job posting, comp range, location, the HM — who *is* the champion of that application — and the stage from screen to offer) and preps me for the interview. It introduces the one entity the rest of the system lacks — the Application/Opportunity — which is also the correlation backbone Engineer charts against. See [`specops/specops-plan.md`](specops/specops-plan.md).
+
 ---
 
 ## Quick start
@@ -83,7 +88,8 @@ First-time setup for each app is in its own README (`npm install`, `createdb sni
 ambition/
 ├── sniper/        🎯 LinkedIn capture → enrichment → review  (shipped)
 ├── meddic/        🩹 campaign engine & outreach tracker      (shipped)
-├── engineer/      🔧 ideas backlog for CRM improvements       (planned B)
-├── commander/     ⭐ company rollup view                      (planned A)
+├── engineer/      🔧 analytics & metrics backlog              (planned)
+├── commander/     ⭐ company rollup view                      (planned)
+├── specops/       🎖 opportunity tracking & interview prep    (planned)
 ├── start-ambition.sh / kill-ambition.sh
 ```
