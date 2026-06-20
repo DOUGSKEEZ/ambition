@@ -323,8 +323,8 @@ function contactRow(c) {
       <div class="cr-title">${typeBadge(c.type)}${(c.role && c.role !== TYPE_ROLE[c.type]) ? ' ' + esc(c.role) : ''}${c.title ? ' · ' + esc(c.title) : ''}</div>
     </div>
     <span class="spacer"></span>
-    <a class="link medic-link" href="${medicLink(c.person_id)}" target="_blank" rel="noopener" title="Open in Meddic"><span class="ml-top"><img class="ic14" src="icons/meddic-20.png" alt="">↗</span><span class="ml-label">Meddic</span></a>
     ${c.is_primary ? '' : `<a class="link" data-primary="${c.person_id}">make primary</a>`}
+    <a class="link medic-link" href="${medicLink(c.person_id)}" target="_blank" rel="noopener" title="Open in Meddic"><span class="ml-top"><img class="ic14" src="icons/meddic-20.png" alt="">↗</span><span class="ml-label">Meddic</span></a>
     <a class="link" data-remove="${c.person_id}">remove</a>
   </div>`;
 }
