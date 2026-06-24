@@ -249,6 +249,49 @@ async function loadCompanies() {
 async function loadCampaignList() { campaigns = await api('/campaigns'); }
 
 // ---------- Today ----------
+// Click a column header to sort by it; click the active one again to flip direction.
+// Default: no client sort — keep the server's order (heat, then due date).
+let todaySort = { by: null, dir: 'asc' };
+const TODAY_SORT_VALUE = {
+  marker: (r) => r.emoji || null,
+  name: (r) => (r.name || '').toLowerCase() || null,
+  company: (r) => (r.company_name || '').toLowerCase() || null,
+  type: (r) => r.type || null,
+  campaign: (r) => (r.campaign_name || '').toLowerCase() || null,
+  next_step: (r) => (r.next_step_purpose || '').toLowerCase() || null,
+  label: (r) => (r.label || '').toLowerCase() || null,
+  due: (r) => (r.next_action_date ? r.next_action_date.slice(0, 10) : null),
+};
+
+// Reorder rows in place by the active column. Missing values always sink to the
+// bottom regardless of direction (no value = nothing to surface).
+function sortToday(rows) {
+  const getVal = TODAY_SORT_VALUE[todaySort.by];
+  if (!getVal) return;
+  const sign = todaySort.dir === 'asc' ? 1 : -1;
+  rows.sort((a, b) => {
+    const va = getVal(a), vb = getVal(b);
+    if (va == null && vb == null) return 0;
+    if (va == null) return 1;
+    if (vb == null) return -1;
+    return sign * (va < vb ? -1 : va > vb ? 1 : 0);
+  });
+}
+
+function setTodaySort(by) {
+  if (todaySort.by === by) todaySort.dir = todaySort.dir === 'asc' ? 'desc' : 'asc';
+  else todaySort = { by, dir: 'asc' };
+  loadToday();
+}
+
+function updateTodaySortArrows() {
+  document.querySelectorAll('#today-table th.sortable').forEach((th) => {
+    const active = th.dataset.sort === todaySort.by;
+    th.classList.toggle('active', active);
+    th.querySelector('.arrow').textContent = active ? (todaySort.dir === 'asc' ? ' ▲' : ' ▼') : '';
+  });
+}
+
 async function loadToday() {
   if (!companyId) return;
   const showCompany = companyId === 'all';
@@ -256,6 +299,8 @@ async function loadToday() {
   let rows = await api(withQS('/queue', companyQS()));
   const type = $('today-type').value;
   if (type) rows = rows.filter((r) => r.type === type);
+  sortToday(rows);
+  updateTodaySortArrows();
   const body = $('today-body'); body.innerHTML = '';
   $('today-empty').classList.toggle('hidden', rows.length > 0);
   const cooling = rows.filter((r) => r.going_cold).length;
@@ -897,6 +942,9 @@ $('roster-status').onchange = loadRoster;
 $('roster-type').onchange = loadRoster;
 document.querySelectorAll('#view-roster th.sortable').forEach((th) => {
   th.onclick = () => setRosterSort(th.dataset.sort);
+});
+document.querySelectorAll('#today-table th.sortable').forEach((th) => {
+  th.onclick = () => setTodaySort(th.dataset.sort);
 });
 $('back-from-person').onclick = () => { show(personReturn); reloadCurrent(); };
 $('p-refresh').onclick = () => { if (person) openPerson(person.id).then(() => toast('Refreshed')).catch((e) => toast(e.message)); };
