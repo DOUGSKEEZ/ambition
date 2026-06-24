@@ -110,6 +110,42 @@ function editNick(span, id, value) {
 
 // ---------- Queue ----------
 const PRIORITY_LABEL = { 1: 'High', 2: 'Medium', 3: 'Low' };
+
+// Column sort state. Default matches the original behavior: priority ascending (High floats up).
+// Headers are clickable to re-sort; clicking the active column flips direction.
+let sortKey = 'priority';
+let sortDir = 1; // 1 = ascending, -1 = descending
+const SORT_ACCESSORS = {
+  priority: (p) => p.priority ?? 99,                                  // nulls sort last
+  name: (p) => (p.name || '').toLowerCase(),
+  title: (p) => (p.title || '').toLowerCase(),
+  company: (p) => (p.company_name || '').toLowerCase(),
+  type: (p) => (p.type || '').toLowerCase(),
+  captured: (p) => (p.captured_at ? new Date(p.captured_at).getTime() : 0),
+};
+
+// Sort in place by the active column, breaking ties by name so equal keys (e.g. same company)
+// read predictably top-to-bottom.
+function sortRows(rows) {
+  const get = SORT_ACCESSORS[sortKey] || SORT_ACCESSORS.priority;
+  const cmp = (x, y) => (x < y ? -1 : x > y ? 1 : 0);
+  rows.sort((a, b) => {
+    const primary = cmp(get(a), get(b));
+    if (primary) return primary * sortDir;
+    if (sortKey === 'name') return 0;
+    return cmp(SORT_ACCESSORS.name(a), SORT_ACCESSORS.name(b)) * sortDir;
+  });
+}
+
+// Reflect the active column + direction in the header arrows.
+function updateSortIndicators() {
+  document.querySelectorAll('thead th[data-sort]').forEach((th) => {
+    const active = th.dataset.sort === sortKey;
+    th.classList.toggle('sorted', active);
+    const arrow = th.querySelector('.sort-arrow');
+    if (arrow) arrow.textContent = active ? (sortDir === 1 ? ' ▲' : ' ▼') : '';
+  });
+}
 function priorityCell(p) {
   if (p.priority == null) return '<span class="muted">—</span>';
   return `<span class="badge p${p.priority}">${p.priority} · ${PRIORITY_LABEL[p.priority] || ''}</span>`;
@@ -120,10 +156,10 @@ async function loadQueue() {
   const priority = $('priority-filter').value;
   const qs = status ? `?import_status=${encodeURIComponent(status)}` : '';
   let rows = await api(`/people${qs}`);
-  // Optionally narrow to a single priority, then float high-priority (1) to the top
-  // while preserving the server's captured-at ordering within each priority bucket.
+  // Optionally narrow to a single priority, then order by the active column (priority by default).
   if (priority) rows = rows.filter((p) => p.priority === Number(priority));
-  rows.sort((a, b) => (a.priority ?? 99) - (b.priority ?? 99));
+  sortRows(rows);
+  updateSortIndicators();
   const body = $('queue-body');
   body.innerHTML = '';
   $('queue-empty').classList.toggle('hidden', rows.length > 0);
@@ -343,6 +379,16 @@ $('tab-companies').onclick = () => { show('companies'); loadCompanies(); };
 $('refresh-queue').onclick = loadQueue;
 $('status-filter').onchange = loadQueue;
 $('priority-filter').onchange = loadQueue;
+// Clickable column headers: click to sort, click the active column again to flip direction.
+// Text-ish columns start ascending (A→Z); Captured starts descending (newest first).
+document.querySelectorAll('thead th[data-sort]').forEach((th) => {
+  th.onclick = () => {
+    const key = th.dataset.sort;
+    if (sortKey === key) sortDir = -sortDir;
+    else { sortKey = key; sortDir = key === 'captured' ? -1 : 1; }
+    loadQueue();
+  };
+});
 $('select-all').onchange = (e) => {
   document.querySelectorAll('.row-check:not(:disabled)').forEach((c) => { c.checked = e.target.checked; });
   updateBulkBar();

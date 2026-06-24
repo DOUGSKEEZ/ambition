@@ -5,11 +5,15 @@ const router = Router();
 
 const STAGES = new Set(['lead', 'outreach', 'hm_reply', 'screen', 'interview', 'offer', 'closed']);
 const OUTCOMES = new Set(['accepted', 'rejected', 'withdrawn']);
+// Card visual status: the "active" accent color (a fixed palette mapped to CSS classes) and an
+// emoji stamp. Kept in lock-step with CARD_COLORS / STAMPS in public/app.js.
+const COLORS = new Set(['blue', 'red', 'green', 'orange']);
+const STAMPS = new Set(['🔥', '✅', '⚠️', '🥶', '📝', '🚀']);
 const DATE_FIELDS = new Set(['first_message_at', 'first_reply_at']);
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 // Columns the client may set on create/update. Names come from this whitelist (never raw
 // input), values are always bound — so there's no injection surface in the dynamic SQL.
-const EDITABLE = ['role_title', 'job_posting_url', 'stage', 'outcome', 'comp_range', 'location', 'first_message_at', 'first_reply_at', 'notes'];
+const EDITABLE = ['role_title', 'job_posting_url', 'stage', 'outcome', 'comp_range', 'location', 'first_message_at', 'first_reply_at', 'notes', 'accent_color', 'stamp'];
 
 // Normalize an incoming value: '' / undefined -> null (so empty date inputs don't break, and
 // blanks clear a field). Everything else passes through.
@@ -32,6 +36,14 @@ function validatePayload(body) {
     const o = clean(body.outcome);
     if (o !== null && !OUTCOMES.has(o)) return `invalid outcome: ${body.outcome}`;
   }
+  if ('accent_color' in body) {
+    const c = clean(body.accent_color);
+    if (c !== null && !COLORS.has(c)) return `invalid color: ${body.accent_color}`;
+  }
+  if ('stamp' in body) {
+    const s = clean(body.stamp);
+    if (s !== null && !STAMPS.has(s)) return `invalid stamp: ${body.stamp}`;
+  }
   for (const f of EDITABLE) {
     if (!(f in body)) continue;
     const v = clean(body[f]);
@@ -52,7 +64,7 @@ function coerceOutcome(body) {
 function selectOpportunities(whereSql = '', params = []) {
   return query(
     `SELECT o.id, o.company_id, c.name AS company_name, o.role_title, o.job_posting_url,
-            o.stage, o.outcome, o.comp_range, o.location,
+            o.stage, o.outcome, o.accent_color, o.stamp, o.sort_order, o.comp_range, o.location,
             to_char(o.first_message_at, 'YYYY-MM-DD') AS first_message_at,
             to_char(o.first_reply_at, 'YYYY-MM-DD') AS first_reply_at,
             o.notes, o.created_at, o.updated_at,
@@ -69,7 +81,7 @@ function selectOpportunities(whereSql = '', params = []) {
      FROM opportunities o
      JOIN companies c ON c.id = o.company_id
      ${whereSql}
-     ORDER BY o.created_at, o.id`,
+     ORDER BY o.sort_order NULLS LAST, o.created_at, o.id`,
     params
   );
 }
@@ -140,7 +152,54 @@ router.post('/', async (req, res) => {
   }
 });
 
-// PUT /opportunities/:id — patch any editable fields (stage move included).
+// PUT /opportunities/reorder — set the top-to-bottom order of one stage column. The column is a
+// single ordered list of mixed items — cards and dividers share one sort_order space so a divider
+// sits between two cards. Body: {stage, items:[{type:'opportunity'|'divider', id}, ...]} (legacy
+// {ids:[...]} is still accepted as an all-opportunity list). Each item is moved into `stage` (so a
+// drop that crosses columns is one call) and given a sequential sort_order; a card leaving `closed`
+// has its outcome cleared to keep the outcome_only_when_closed invariant. Registered BEFORE '/:id'
+// so the literal path isn't swallowed by the :id param route.
+router.put('/reorder', async (req, res) => {
+  try {
+    const stage = clean(req.body.stage);
+    if (!STAGES.has(stage)) return res.status(400).json({ error: `invalid stage: ${req.body.stage}` });
+
+    // Normalize to a typed item list (legacy `ids` = all opportunities).
+    const items = Array.isArray(req.body.items)
+      ? req.body.items
+      : Array.isArray(req.body.ids) ? req.body.ids.map((id) => ({ type: 'opportunity', id })) : null;
+    if (!items) return res.status(400).json({ error: 'items must be an array' });
+    const norm = items.map((it) => ({ type: it?.type, id: Number.parseInt(it?.id, 10) }));
+    if (norm.some((it) => !Number.isInteger(it.id) || (it.type !== 'opportunity' && it.type !== 'divider'))) {
+      return res.status(400).json({ error: 'each item needs an integer id and type opportunity|divider' });
+    }
+
+    await withTransaction(async (client) => {
+      for (let i = 0; i < norm.length; i++) {
+        const it = norm[i];
+        if (it.type === 'divider') {
+          await client.query('UPDATE board_dividers SET stage = $1, sort_order = $2 WHERE id = $3', [stage, i, it.id]);
+        } else {
+          await client.query(
+            `UPDATE opportunities
+               SET stage = $1, sort_order = $2,
+                   outcome = CASE WHEN $1 = 'closed' THEN outcome ELSE NULL END
+             WHERE id = $3`,
+            [stage, i, it.id]
+          );
+        }
+      }
+    });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[PUT /opportunities/reorder]', err);
+    res.status(pgStatus(err)).json({ error: err.message });
+  }
+});
+
+// PUT /opportunities/:id — patch any editable fields (stage move included). company_id may also be
+// changed (e.g. an opportunity created under the wrong company); since contacts are company-scoped,
+// moving companies unlinks any attached contacts that don't belong to the new company.
 router.put('/:id', async (req, res) => {
   try {
     const id = Number.parseInt(req.params.id, 10);
@@ -149,15 +208,34 @@ router.put('/:id', async (req, res) => {
     if (verr) return res.status(400).json({ error: verr });
     coerceOutcome(req.body);
 
+    let newCompanyId = null;
+    if ('company_id' in req.body) {
+      newCompanyId = Number.parseInt(req.body.company_id, 10);
+      if (!Number.isInteger(newCompanyId)) return res.status(400).json({ error: 'invalid company_id' });
+    }
+
     const sets = [];
     const vals = [];
     for (const f of EDITABLE) {
       if (f in req.body) { vals.push(clean(req.body[f])); sets.push(`${f} = $${vals.length}`); }
     }
+    if (newCompanyId !== null) { vals.push(newCompanyId); sets.push(`company_id = $${vals.length}`); }
     if (!sets.length) return res.status(400).json({ error: 'nothing to update' });
-    vals.push(id);
-    const upd = await query(`UPDATE opportunities SET ${sets.join(', ')} WHERE id = $${vals.length} RETURNING id`, vals);
-    if (!upd.rows.length) return res.status(404).json({ error: 'not found' });
+
+    const updated = await withTransaction(async (client) => {
+      vals.push(id);
+      const upd = await client.query(`UPDATE opportunities SET ${sets.join(', ')} WHERE id = $${vals.length} RETURNING id`, vals);
+      if (!upd.rows.length) return false;
+      if (newCompanyId !== null) {
+        await client.query(
+          `DELETE FROM opportunity_contacts oc USING people p
+           WHERE oc.opportunity_id = $1 AND oc.person_id = p.id AND p.company_id <> $2`,
+          [id, newCompanyId]
+        );
+      }
+      return true;
+    });
+    if (!updated) return res.status(404).json({ error: 'not found' });
     const r = await selectOpportunities('WHERE o.id = $1', [id]);
     res.json(r.rows[0]);
   } catch (err) {

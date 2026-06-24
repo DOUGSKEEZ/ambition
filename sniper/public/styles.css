@@ -101,6 +101,10 @@ textarea { width: 100%; resize: vertical; min-height: 70px; line-height: 1.5; wh
 table { width: 100%; border-collapse: collapse; background: var(--panel); border-radius: 8px; overflow: hidden; }
 th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border); }
 th { color: var(--muted); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+th.sortable { cursor: pointer; user-select: none; white-space: nowrap; }
+th.sortable:hover { color: var(--text); }
+th.sorted { color: var(--text); }
+th .sort-arrow { font-size: 10px; }
 tbody tr { cursor: pointer; }
 tbody tr:hover { background: var(--panel-2); }
 

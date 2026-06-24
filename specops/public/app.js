@@ -44,6 +44,10 @@ const STAGES = [
 ];
 const STAGE_LABEL = Object.fromEntries(STAGES.map((s) => [s.key, s.label]));
 const OUTCOMES = ['accepted', 'rejected', 'withdrawn'];
+// Card visual status (kept in lock-step with COLORS / STAMPS in routes/opportunities.js).
+// accent_color is the "actively working this" cue; the stamp is a status emoji.
+const CARD_COLORS = ['blue', 'red', 'green', 'orange'];
+const STAMPS = ['🔥', '✅', '⚠️', '🥶', '📝', '🚀'];
 
 function photoUrl(p) {
   return p && p.photo_path ? `/media/${p.photo_path}`
@@ -62,8 +66,9 @@ const companyIcon = (id) => (id ? `<img class="co-ico" src="/media/company-icons
 let companies = [];
 let companyId = 'all';
 let opportunities = [];
+let dividers = [];
 const peopleCache = {}; // company_id -> people[]
-let dragId = null;
+let drag = null; // what's being dragged: { kind: 'opportunity' | 'divider', id }
 
 // Per-card collapse state (ids of collapsed opportunities), persisted across reloads.
 let collapsed = new Set();
@@ -71,6 +76,7 @@ try { collapsed = new Set(JSON.parse(localStorage.getItem('specops.collapsed') |
 const saveCollapsed = () => localStorage.setItem('specops.collapsed', JSON.stringify([...collapsed]));
 
 const findOpp = (id) => opportunities.find((o) => o.id === id);
+const findDivider = (id) => dividers.find((d) => d.id === id);
 
 // ---------- bootstrap ----------
 async function loadCompanies() {
@@ -107,14 +113,17 @@ function peopleFor(cid) {
 // ---------- board ----------
 async function loadBoard() {
   const path = companyId === 'all' ? '/opportunities' : `/opportunities?company_id=${companyId}`;
-  opportunities = await api(path);
+  // Dividers aren't company-scoped — they belong to a stage column and merge into it by sort_order.
+  [opportunities, dividers] = await Promise.all([api(path), api('/dividers')]);
   renderBoard();
 }
 
 function renderBoard() {
+  closePalette();     // the shared popovers are anchored to buttons this re-render replaces
+  closeDivEditor();
   const board = $('board');
-  // Show the board OR the empty-state hint, never both stacked.
-  const empty = opportunities.length === 0;
+  // The board shows whenever there are cards OR dividers to place (a user can lay out dividers first).
+  const empty = opportunities.length === 0 && dividers.length === 0;
   $('board-empty').classList.toggle('hidden', !empty);
   board.classList.toggle('hidden', empty);
   const open = opportunities.filter((o) => o.stage !== 'closed').length;
@@ -122,28 +131,160 @@ function renderBoard() {
 
   board.innerHTML = STAGES.map((s) => {
     const inStage = opportunities.filter((o) => o.stage === s.key);
-    const cards = inStage.map(card).join('');
+    // Cards and dividers share one sort_order space within the column, so merge and sort them together.
+    const items = [
+      ...inStage.map((o) => ({ kind: 'opportunity', so: o.sort_order, html: card(o) })),
+      ...dividers.filter((d) => d.stage === s.key).map((d) => ({ kind: 'divider', so: d.sort_order, html: dividerEl(d) })),
+    ].sort((a, b) => (a.so ?? Infinity) - (b.so ?? Infinity));
     return `<div class="col ${s.key}" data-stage="${s.key}">
-      <div class="col-head"><span class="name">${s.label}</span><span class="count">${inStage.length}</span></div>
-      <div class="col-list">${cards}</div>
+      <div class="col-head">
+        <span class="name">${s.label}</span>
+        <span class="count">${inStage.length}</span>
+        <button class="col-add-divider" data-add-divider="${s.key}" title="Add a divider">⎯＋</button>
+      </div>
+      <div class="col-list">${items.map((it) => it.html).join('')}</div>
     </div>`;
   }).join('');
 
   wireBoard();
 }
 
+// A divider: a labeled separator that drops into a column between cards. It's a draggable board item
+// (data-kind/data-item-id mirror the card's, so reorder treats them uniformly) with an edit handle.
+function dividerEl(d) {
+  const above = (d.label_above || d.chevron_up)
+    ? `<div class="dv-cap dv-above">${d.chevron_up ? '<span class="dv-chev">⌃</span>' : ''}<span>${esc(d.label_above || '')}</span></div>`
+    : '';
+  const below = (d.label_below || d.chevron_down)
+    ? `<div class="dv-cap dv-below"><span>${esc(d.label_below || '')}</span>${d.chevron_down ? '<span class="dv-chev">⌄</span>' : ''}</div>`
+    : '';
+  return `<div class="board-divider board-item" draggable="true" data-kind="divider" data-item-id="${d.id}" data-divider="${d.id}">
+    ${above}
+    <div class="dv-line"><button class="dv-edit" data-divider-edit="${d.id}" draggable="false" title="Edit divider">⋯</button></div>
+    ${below}
+  </div>`;
+}
+
+// The quick-status popover (color swatches + emoji stamps) is a SINGLE element appended to <body>
+// with position:fixed, not one-per-card inside the cards. That keeps it from being clipped by a
+// column's overflow scroll box, and keeps its buttons out of the draggable card subtree (so a
+// fumbled click can't start a card drag). It's positioned next to the 🎨 button that opened it.
+let paletteEl = null;     // the shared popover (lazily created)
+let paletteOppId = null;  // which opportunity it's currently showing, or null when hidden
+
+function closePalette() { if (paletteEl) paletteEl.classList.add('hidden'); paletteOppId = null; }
+
+function openPalette(btn, o) {
+  if (!paletteEl) {
+    paletteEl = document.createElement('div');
+    paletteEl.className = 'card-palette hidden';
+    paletteEl.addEventListener('click', (e) => e.stopPropagation()); // clicks inside don't close it / open detail
+    document.body.appendChild(paletteEl);
+  }
+  paletteOppId = o.id;
+  const colorBtns = [`<button class="cp-color cp-none${o.accent_color ? '' : ' on'}" data-color="" title="No color">∅</button>`]
+    .concat(CARD_COLORS.map((c) => `<button class="cp-color ${c}${o.accent_color === c ? ' on' : ''}" data-color="${c}" title="${c}"></button>`)).join('');
+  const stampBtns = [`<button class="cp-stamp cp-none${o.stamp ? '' : ' on'}" data-stamp="" title="No stamp">∅</button>`]
+    .concat(STAMPS.map((s) => `<button class="cp-stamp${o.stamp === s ? ' on' : ''}" data-stamp="${esc(s)}">${esc(s)}</button>`)).join('');
+  paletteEl.innerHTML = `<div class="cp-row">${colorBtns}</div><div class="cp-row">${stampBtns}</div>`;
+  const apply = async (patch) => {
+    closePalette();
+    try { await jsonPut(`/opportunities/${o.id}`, patch); await loadBoard(); }
+    catch (err) { toast(err.message); }
+  };
+  paletteEl.querySelectorAll('[data-color]').forEach((b) => { b.onclick = () => apply({ accent_color: b.dataset.color || null }); });
+  paletteEl.querySelectorAll('[data-stamp]').forEach((b) => { b.onclick = () => apply({ stamp: b.dataset.stamp || null }); });
+  // Show first (so we can measure it), then anchor under the button, flipping up/left to stay on-screen.
+  paletteEl.classList.remove('hidden');
+  const r = btn.getBoundingClientRect();
+  const p = paletteEl.getBoundingClientRect();
+  let top = r.bottom + 6;
+  if (top + p.height > window.innerHeight - 8) top = Math.max(8, r.top - p.height - 6);
+  let left = Math.min(r.right - p.width, window.innerWidth - 8 - p.width);
+  if (left < 8) left = 8;
+  paletteEl.style.top = `${top}px`;
+  paletteEl.style.left = `${left}px`;
+}
+
+// Anchor a fixed-position popover under `btn`, flipping up/left to stay on-screen. Shared by the
+// divider editor; the palette has its own copy.
+function anchorTo(el, btn) {
+  const r = btn.getBoundingClientRect();
+  const p = el.getBoundingClientRect();
+  let top = r.bottom + 6;
+  if (top + p.height > window.innerHeight - 8) top = Math.max(8, r.top - p.height - 6);
+  let left = Math.min(r.right - p.width, window.innerWidth - 8 - p.width);
+  if (left < 8) left = 8;
+  el.style.top = `${top}px`;
+  el.style.left = `${left}px`;
+}
+
+// ---- divider editor ----
+// A single shared popover (like the palette) for editing a divider's captions + chevrons. Lives on
+// <body> so a column's scroll box can't clip it, and stops its own clicks from bubbling to close.
+let divEditorEl = null;
+let divEditorId = null;
+function closeDivEditor() { if (divEditorEl) divEditorEl.classList.add('hidden'); divEditorId = null; }
+function openDivEditor(btn, d) {
+  if (!divEditorEl) {
+    divEditorEl = document.createElement('div');
+    divEditorEl.className = 'div-editor hidden';
+    divEditorEl.addEventListener('click', (e) => e.stopPropagation());
+    document.body.appendChild(divEditorEl);
+  }
+  divEditorId = d.id;
+  divEditorEl.innerHTML = `
+    <label class="de-field">Text above<input class="de-above" type="text" value="${esc(d.label_above || '')}" placeholder="e.g. Today"></label>
+    <label class="de-field">Text below<input class="de-below" type="text" value="${esc(d.label_below || '')}" placeholder="e.g. Tomorrow"></label>
+    <div class="de-chevs">
+      <button type="button" class="de-chev de-up${d.chevron_up ? ' on' : ''}">⌃ up</button>
+      <button type="button" class="de-chev de-down${d.chevron_down ? ' on' : ''}">⌄ down</button>
+    </div>
+    <div class="de-actions">
+      <button class="primary sm de-save">Save</button>
+      <span class="spacer"></span>
+      <button class="bad sm de-remove">Remove</button>
+    </div>`;
+  const up = divEditorEl.querySelector('.de-up');
+  const down = divEditorEl.querySelector('.de-down');
+  up.onclick = () => up.classList.toggle('on');
+  down.onclick = () => down.classList.toggle('on');
+  divEditorEl.querySelector('.de-save').onclick = async () => {
+    const patch = {
+      label_above: divEditorEl.querySelector('.de-above').value.trim() || null,
+      label_below: divEditorEl.querySelector('.de-below').value.trim() || null,
+      chevron_up: up.classList.contains('on'),
+      chevron_down: down.classList.contains('on'),
+    };
+    closeDivEditor();
+    try { await jsonPut(`/dividers/${d.id}`, patch); await loadBoard(); }
+    catch (err) { toast(err.message); }
+  };
+  divEditorEl.querySelector('.de-remove').onclick = async () => {
+    closeDivEditor();
+    try { await api(`/dividers/${d.id}`, { method: 'DELETE' }); await loadBoard(); }
+    catch (err) { toast(err.message); }
+  };
+  divEditorEl.classList.remove('hidden');
+  anchorTo(divEditorEl, btn);
+}
+
 function card(o) {
   const isCol = collapsed.has(o.id);
+  const accent = o.accent_color ? ` accent-${o.accent_color}` : '';
   const outcome = o.stage === 'closed' && o.outcome ? `<span class="badge outcome">${esc(o.outcome)}</span>` : '';
-  // Header is always shown (company + title) with a collapse chevron; the body is hidden when collapsed.
+  const stamp = o.stamp ? `<span class="oc-stamp">${esc(o.stamp)}</span>` : '';
+  // Header is always shown (company + title, stamp, paint + collapse controls); the body is hidden when collapsed.
   const head = `<div class="oc-head">
     <div class="oc-titles">
       <div class="oc-company">${companyIcon(o.company_id)}${esc(o.company_name)} ${outcome}</div>
       <div class="oc-role">${o.role_title ? esc(o.role_title) : '<span class="muted">untitled role</span>'}</div>
     </div>
+    ${stamp}
+    <button class="oc-paint" data-paint="${o.id}" draggable="false" title="Color &amp; stamp">●</button>
     <button class="oc-collapse" data-collapse="${o.id}" title="${isCol ? 'Expand' : 'Collapse'}">${isCol ? '▸' : '▾'}</button>
   </div>`;
-  if (isCol) return `<div class="opp-card collapsed" draggable="true" data-id="${o.id}">${head}</div>`;
+  if (isCol) return `<div class="opp-card collapsed board-item${accent}" draggable="true" data-kind="opportunity" data-item-id="${o.id}" data-id="${o.id}">${head}</div>`;
 
   const primary = (o.contacts || []).find((c) => c.is_primary) || (o.contacts || [])[0];
   const meta = [o.comp_range, o.location].filter(Boolean).map((x) => `<span>${esc(x)}</span>`).join('');
@@ -151,19 +292,62 @@ function card(o) {
   const contactBit = primary
     ? `<div class="oc-contacts"><img class="thumb sm" src="${photoUrl(primary)}" title="${esc(primary.name)}"> <span style="font-size:12px">${esc(primary.name)}</span> ${extra}</div>`
     : '<div class="oc-contacts muted" style="font-size:12px">no contact yet</div>';
-  return `<div class="opp-card" draggable="true" data-id="${o.id}">
+  return `<div class="opp-card board-item${accent}" draggable="true" data-kind="opportunity" data-item-id="${o.id}" data-id="${o.id}">
     ${head}
     ${meta ? `<div class="oc-meta">${meta}</div>` : ''}
     ${contactBit}
   </div>`;
 }
 
+// A single shared insertion line, moved between columns as you drag (so there's never more than
+// one). markerRef reports which board item (card OR divider) the cursor sits above — its midpoint
+// decides above/below — or null to drop at the end of the column.
+let dropMarker = null;
+function ensureMarker() {
+  if (!dropMarker) { dropMarker = document.createElement('div'); dropMarker.className = 'drop-marker'; }
+  return dropMarker;
+}
+function clearMarker() { if (dropMarker?.parentNode) dropMarker.remove(); }
+// {kind, id} for a board item element (a card or a divider). reorder treats both uniformly.
+const elItem = (el) => ({ kind: el.dataset.kind, id: Number(el.dataset.itemId) });
+const sameOrder = (a, b) => a.length === b.length && a.every((x, i) => x.kind === b[i].kind && x.id === b[i].id);
+function markerRef(colList, clientY) {
+  const items = [...colList.querySelectorAll('.board-item:not(.dragging)')];
+  for (const el of items) {
+    const r = el.getBoundingClientRect();
+    if (clientY < r.top + r.height / 2) return el;
+  }
+  return null;
+}
+
 function wireBoard() {
   const board = $('board');
+  // Cards and dividers are both draggable board items; the card alone opens its detail on click.
+  board.querySelectorAll('.board-item').forEach((el) => {
+    el.addEventListener('dragstart', (e) => { drag = elItem(el); el.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; });
+    el.addEventListener('dragend', () => { el.classList.remove('dragging'); drag = null; clearMarker(); });
+  });
   board.querySelectorAll('.opp-card').forEach((el) => {
-    el.addEventListener('dragstart', (e) => { dragId = Number(el.dataset.id); el.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; });
-    el.addEventListener('dragend', () => { el.classList.remove('dragging'); dragId = null; });
     el.addEventListener('click', () => { const o = findOpp(Number(el.dataset.id)); if (o) openDetail(o); });
+  });
+  // Divider edit handle: opens the caption/chevron editor popover (stopPropagation so it doesn't
+  // start a drag-adjacent click or hit the document-level close handler).
+  board.querySelectorAll('[data-divider-edit]').forEach((el) => {
+    el.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const d = findDivider(Number(el.dataset.dividerEdit));
+      if (!d) return;
+      if (divEditorId === d.id && divEditorEl && !divEditorEl.classList.contains('hidden')) closeDivEditor();
+      else openDivEditor(el, d);
+    });
+  });
+  // Column header "+ divider": drop a fresh divider at the top of that stage to drag into place.
+  board.querySelectorAll('[data-add-divider]').forEach((el) => {
+    el.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      try { await jsonPost('/dividers', { stage: el.dataset.addDivider }); await loadBoard(); }
+      catch (err) { toast(err.message); }
+    });
   });
   // Collapse/expand chevron — toggles the card without opening the detail.
   board.querySelectorAll('[data-collapse]').forEach((el) => {
@@ -175,17 +359,53 @@ function wireBoard() {
       renderBoard();
     });
   });
+  // 🎨 quick-status: the paint button opens the shared color/stamp popover next to it (toggling if it's
+  // already this card's). stopPropagation keeps the click from opening the detail modal or hitting the
+  // document-level "close palette" handler. The popover itself lives on <body> (see openPalette).
+  board.querySelectorAll('[data-paint]').forEach((el) => {
+    el.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const o = findOpp(Number(el.dataset.paint));
+      if (!o) return;
+      if (paletteOppId === o.id && paletteEl && !paletteEl.classList.contains('hidden')) closePalette();
+      else openPalette(el, o);
+    });
+  });
   board.querySelectorAll('.col').forEach((col) => {
-    col.addEventListener('dragover', (e) => { e.preventDefault(); col.classList.add('drag-over'); });
-    col.addEventListener('dragleave', () => col.classList.remove('drag-over'));
+    const colList = col.querySelector('.col-list');
+    col.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      col.classList.add('drag-over');
+      // Park the insertion line at the cursor position so the drop target is visible.
+      const marker = ensureMarker();
+      colList.insertBefore(marker, markerRef(colList, e.clientY));
+    });
+    col.addEventListener('dragleave', (e) => {
+      // Only react when the pointer actually leaves the column (dragleave also fires when moving
+      // onto a child); the marker itself is cleared on drop/dragend.
+      if (!col.contains(e.relatedTarget)) col.classList.remove('drag-over');
+    });
     col.addEventListener('drop', async (e) => {
       e.preventDefault();
       col.classList.remove('drag-over');
-      const id = dragId;
+      const dropped = drag;          // {kind, id} captured at dragstart
+      clearMarker();
+      if (!dropped) return;
       const stage = col.dataset.stage;
-      const o = findOpp(id);
-      if (!o || o.stage === stage) return;
-      try { await jsonPut(`/opportunities/${id}`, { stage }); await loadBoard(); }
+      // New top-to-bottom order for this column: the items already here (minus the dragged one),
+      // with the dragged item spliced in where the marker sat. Cards and dividers ride together.
+      const ref = markerRef(colList, e.clientY);
+      const order = [...colList.querySelectorAll('.board-item:not(.dragging)')].map(elItem);
+      const at = ref ? order.findIndex((it) => it.kind === ref.dataset.kind && it.id === Number(ref.dataset.itemId)) : -1;
+      order.splice(at < 0 ? order.length : at, 0, dropped);
+      // No-op guard: dropped back into its own column in the same position. `before` includes the
+      // dragged element at its original slot (only present when it started in this column).
+      const before = [...colList.querySelectorAll('.board-item')].map(elItem);
+      const fromStage = (dropped.kind === 'divider' ? findDivider(dropped.id) : findOpp(dropped.id))?.stage;
+      if (fromStage === stage && sameOrder(before, order)) return;
+      // Wire format: the reorder endpoint keys items by `type` (not our internal `kind`).
+      const items = order.map((it) => ({ type: it.kind, id: it.id }));
+      try { await jsonPut('/opportunities/reorder', { stage, items }); await loadBoard(); }
       catch (err) { toast(err.message); }
     });
   });
@@ -195,7 +415,19 @@ function wireBoard() {
 function openModal() { $('modal').classList.remove('hidden'); }
 function closeModal() { $('modal').classList.add('hidden'); $('modal-body').innerHTML = ''; $('modal-body').classList.remove('two-col'); }
 $('modal').addEventListener('click', (e) => { if (e.target === $('modal')) closeModal(); });
-document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('modal').classList.contains('hidden')) closeModal(); });
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Escape') return;
+  if (paletteOppId !== null) closePalette();       // Escape closes the quick-status popover first…
+  else if (divEditorId !== null) closeDivEditor();  // …then the divider editor…
+  else if (!$('modal').classList.contains('hidden')) closeModal();  // …then the modal
+});
+// Both body-level popovers are fixed-positioned next to their button, so close them on any outside
+// click (their own clicks + the trigger button stopPropagation) and whenever the page/columns scroll
+// or resize (capture:true catches column scrolls, which don't bubble) so they never drift off-anchor.
+const closePopovers = () => { closePalette(); closeDivEditor(); };
+document.addEventListener('click', closePopovers);
+window.addEventListener('scroll', closePopovers, true);
+window.addEventListener('resize', closePopovers);
 
 const stageOptions = (sel) => STAGES.map((s) => `<option value="${s.key}"${s.key === sel ? ' selected' : ''}>${s.label}</option>`).join('');
 
@@ -255,6 +487,7 @@ async function renderDetail(o) {
     <div class="sub">${o.role_title ? esc(o.role_title) : 'untitled role'} · ${STAGE_LABEL[o.stage]}</div>
 
     <div class="mcol">
+      <div class="field"><label>Company *</label><select data-f="company_id">${companies.map((c) => `<option value="${c.id}"${c.id === o.company_id ? ' selected' : ''}>${esc(c.name)}</option>`).join('')}</select></div>
       <div class="field"><label>Role title</label><input data-f="role_title" type="text" value="${esc(o.role_title)}" placeholder="placeholder is fine"></div>
       <div class="field"><label>Job posting URL</label><input data-f="job_posting_url" type="url" value="${esc(o.job_posting_url)}" placeholder="(optional — many roles aren't listed)"></div>
       <div class="row2">
@@ -272,6 +505,23 @@ async function renderDetail(o) {
         </div>
       </div>
       <div id="fm-preview" class="fm-preview hidden"></div>
+
+      <div class="field">
+        <label>Card status <span class="muted" style="text-transform:none;letter-spacing:0">· a color marks it active; add a stamp</span></label>
+        <input type="hidden" data-f="accent_color" value="${esc(o.accent_color || '')}">
+        <input type="hidden" data-f="stamp" value="${esc(o.stamp || '')}">
+        <div class="status-pick">
+          <div class="sp-row" id="sp-colors">
+            <button type="button" class="cp-color cp-none${o.accent_color ? '' : ' on'}" data-color="" title="No color">∅</button>
+            ${CARD_COLORS.map((c) => `<button type="button" class="cp-color ${c}${o.accent_color === c ? ' on' : ''}" data-color="${c}" title="${c}"></button>`).join('')}
+          </div>
+          <div class="sp-row" id="sp-stamps">
+            <button type="button" class="cp-stamp cp-none${o.stamp ? '' : ' on'}" data-stamp="" title="No stamp">∅</button>
+            ${STAMPS.map((s) => `<button type="button" class="cp-stamp${o.stamp === s ? ' on' : ''}" data-stamp="${esc(s)}">${esc(s)}</button>`).join('')}
+          </div>
+        </div>
+      </div>
+
       <div class="field"><label>Opportunity notes</label><textarea data-f="notes" placeholder="Prep, threads, interview context…">${esc(o.notes)}</textarea></div>
 
       <div class="field">
@@ -345,9 +595,30 @@ async function renderDetail(o) {
     } catch (e) { toast(e.message); }
   });
 
+  // Card status picker: clicking a swatch/stamp updates its hidden [data-f] input (so it saves with
+  // the rest of the form via collect) and moves the active highlight. '' clears the color/stamp.
+  const wirePick = (rowId, field) => {
+    const input = $('modal-body').querySelector(`[data-f="${field}"]`);
+    const row = $(rowId);
+    const attr = field === 'accent_color' ? 'color' : 'stamp';
+    row.querySelectorAll(`[data-${attr}]`).forEach((b) => {
+      b.onclick = () => {
+        input.value = b.dataset[attr];
+        row.querySelectorAll(`[data-${attr}]`).forEach((x) => x.classList.toggle('on', x === b));
+      };
+    });
+  };
+  wirePick('sp-colors', 'accent_color');
+  wirePick('sp-stamps', 'stamp');
+
   $('m-close').onclick = closeModal;
   $('m-save').onclick = async () => {
-    try { await jsonPut(`/opportunities/${o.id}`, collect($('modal-body'))); closeModal(); await loadBoard(); }
+    const payload = collect($('modal-body'));
+    // Moving the opportunity to a different company unlinks contacts from the old company (they're
+    // company-scoped). Warn before that happens so it isn't a silent surprise.
+    if (Number(payload.company_id) !== o.company_id && (o.contacts || []).length
+        && !confirm('Change company? Contacts attached from the current company will be unlinked (the people themselves stay in Sniper/Meddic).')) return;
+    try { await jsonPut(`/opportunities/${o.id}`, payload); closeModal(); await loadBoard(); }
     catch (e) { toast(e.message); }
   };
   $('m-delete').onclick = async () => {
