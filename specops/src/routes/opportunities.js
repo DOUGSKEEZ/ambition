@@ -3,7 +3,7 @@ import { query, withTransaction } from '../db.js';
 
 const router = Router();
 
-const STAGES = new Set(['lead', 'outreach', 'hm_reply', 'screen', 'interview', 'offer', 'closed']);
+const STAGES = new Set(['lead', 'outreach', 'outreach_today', 'completed_outreach', 'hm_reply', 'screen_interview', 'offer', 'closed']);
 const OUTCOMES = new Set(['accepted', 'rejected', 'withdrawn']);
 // Card visual status: the "active" accent color (a fixed palette mapped to CSS classes) and an
 // emoji stamp. Kept in lock-step with CARD_COLORS / STAMPS in public/app.js.

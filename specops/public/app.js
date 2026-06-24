@@ -36,9 +36,10 @@ const jsonPost = (path, obj) => api(path, { method: 'POST', headers: { 'Content-
 const STAGES = [
   { key: 'lead', label: 'Initial' },
   { key: 'outreach', label: 'Outreach' },
+  { key: 'outreach_today', label: 'Outreach Today' },
+  { key: 'completed_outreach', label: 'Completed Outreach' },
   { key: 'hm_reply', label: 'HM Reply' },
-  { key: 'screen', label: 'Screen' },
-  { key: 'interview', label: 'Interview' },
+  { key: 'screen_interview', label: 'Screen & Interview' },
   { key: 'offer', label: 'Offer' },
   { key: 'closed', label: 'Closed' },
 ];

@@ -4,7 +4,7 @@ import { query } from '../db.js';
 const router = Router();
 
 // Kept in lock-step with STAGES in opportunities.js / public/app.js.
-const STAGES = new Set(['lead', 'outreach', 'hm_reply', 'screen', 'interview', 'offer', 'closed']);
+const STAGES = new Set(['lead', 'outreach', 'outreach_today', 'completed_outreach', 'hm_reply', 'screen_interview', 'offer', 'closed']);
 
 const clean = (v) => (v === '' || v === undefined ? null : v);
 const bool = (v) => v === true || v === 'true';
