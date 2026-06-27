@@ -123,10 +123,16 @@
         <span class="spacer"></span>
         <button id="refresh-roster" class="sm">Refresh</button>
       </div>
-      <table>
-        <thead><tr><th></th><th>Marker</th><th>Name</th><th>Type</th><th>Title</th><th>Campaign</th>
+      <table id="roster-table">
+        <thead><tr><th></th>
+          <th class="sortable" data-sort="marker">Marker<span class="arrow"></span></th>
+          <th class="sortable" data-sort="name">Name<span class="arrow"></span></th>
+          <th class="company-col sortable" data-sort="company">Company<span class="arrow"></span></th>
+          <th class="sortable" data-sort="type">Type<span class="arrow"></span></th>
+          <th class="sortable" data-sort="title">Title<span class="arrow"></span></th>
+          <th class="sortable" data-sort="campaign">Campaign<span class="arrow"></span></th>
           <th class="sortable" data-sort="step">Step<span class="arrow"></span></th>
-          <th>Heat</th>
+          <th class="sortable" data-sort="heat">Heat<span class="arrow"></span></th>
           <th class="sortable" data-sort="next_action">Next action<span class="arrow"></span></th></tr></thead>
         <tbody id="roster-body"></tbody>
       </table>

@@ -194,7 +194,11 @@ button.sent-today { background: var(--good); border-color: var(--good); color: #
 .dirty-hint { margin-left: 10px; font-size: 12px; color: var(--warn); }
 
 .campaign-steps { margin-top: 12px; }
-.cstep { display: grid; grid-template-columns: 32px 110px 1fr 84px 150px; gap: 8px; align-items: start; padding: 8px 0; border-top: 1px solid var(--border); }
+.cstep { display: grid; grid-template-columns: 44px 110px 1fr 84px 150px; gap: 8px; align-items: start; padding: 8px 0; border-top: 1px solid var(--border); }
+/* Order cell: step number above stacked up/down reorder arrows (mirrors the contact run UX). */
+.cstep-order { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.cstep-order .num { font-size: 12px; color: var(--muted); }
+.cstep-order .step-move { flex-direction: column; }
 .cstep textarea { min-height: 48px; }
 /* Column labels above the step rows so "#" and the delay field are self-explanatory. */
 .cstep-head { padding: 0 0 2px; border-top: none; align-items: end; }

@@ -142,6 +142,47 @@ router.put('/:id/steps/:stepId', async (req, res) => {
   }
 });
 
+// POST /campaigns/:id/reorder  { order: [stepId, ...] }
+// Renumber a campaign's template steps to the given id order (step_order = 1..N). The order
+// array must list exactly this campaign's step ids. Atomic; returns the steps in the new order.
+// Mirrors POST /person-campaigns/:id/reorder (runs.js) for the contact-side run.
+router.post('/:id/reorder', async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const campaignId = Number(req.params.id);
+    const order = Array.isArray(req.body?.order) ? req.body.order.map(Number) : null;
+    if (!order || !order.length) return res.status(400).json({ error: 'order (array of step ids) required' });
+
+    await client.query('BEGIN');
+    const existing = await client.query(
+      'SELECT id FROM campaign_steps WHERE campaign_id = $1', [campaignId]
+    );
+    const ids = new Set(existing.rows.map((r) => r.id));
+    const sameSet = order.length === ids.size && order.every((id) => ids.has(id));
+    if (!sameSet) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: "order must list exactly this campaign's step ids" });
+    }
+    for (let i = 0; i < order.length; i++) {
+      await client.query(
+        'UPDATE campaign_steps SET step_order = $2 WHERE id = $1 AND campaign_id = $3',
+        [order[i], i + 1, campaignId]
+      );
+    }
+    const rows = await client.query(
+      'SELECT * FROM campaign_steps WHERE campaign_id = $1 ORDER BY step_order', [campaignId]
+    );
+    await client.query('COMMIT');
+    res.json(rows.rows);
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
+    console.error('[POST /campaigns/:id/reorder]', err);
+    res.status(500).json({ error: err.message });
+  } finally {
+    client.release();
+  }
+});
+
 // DELETE /campaigns/:id/steps/:stepId
 router.delete('/:id/steps/:stepId', async (req, res) => {
   try {

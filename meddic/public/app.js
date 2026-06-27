@@ -458,11 +458,21 @@ function makeNextAction(r, reloadFn = loadWeek) {
 // Default: no client sort — keep the server's order (heat, then name).
 let rosterSort = { by: null, dir: 'asc' };
 const SORT_VALUE = {
-  next_action: (r) => (r.next_action_date ? r.next_action_date.slice(0, 10) : null),
+  marker: (r) => r.emoji || null,
+  name: (r) => (r.name || '').toLowerCase() || null,
+  company: (r) => (r.company_name || '').toLowerCase() || null,
+  type: (r) => r.type || null,
+  title: (r) => (r.title || '').toLowerCase() || null,
+  campaign: (r) => (r.campaign_name || '').toLowerCase() || null,
   step: (r) => r.current_step,
+  heat: (r) => r.hot_cold || null,
+  next_action: (r) => (r.next_action_date ? r.next_action_date.slice(0, 10) : null),
 };
 // The direction a column starts in the first time you click it.
-const SORT_DEFAULT_DIR = { next_action: 'asc', step: 'asc' };
+const SORT_DEFAULT_DIR = {
+  marker: 'asc', name: 'asc', company: 'asc', type: 'asc', title: 'asc', campaign: 'asc',
+  step: 'asc', heat: 'asc', next_action: 'asc',
+};
 
 // Reorder rows in place by the active column. Missing values always sink to the
 // bottom regardless of direction (no priority/date/campaign = nothing to surface).
@@ -499,6 +509,7 @@ async function loadRoster() {
   let rows = await api(withQS('/people', companyQS(), status ? `status=${status}` : ''));
   const type = $('roster-type').value;
   if (type) rows = rows.filter((r) => r.type === type);
+  $('roster-table').classList.toggle('show-company', companyId === 'all');
   sortRoster(rows);
   updateSortArrows();
   const body = $('roster-body'); body.innerHTML = '';
@@ -509,6 +520,7 @@ async function loadRoster() {
       <td><img class="thumb" src="${photoUrl(r)}"></td>
       <td class="emoji-cell"></td>
       <td class="name-cell">${esc(r.name)} ${stagedIcon(r.staged)}</td>
+      <td class="company-col">${esc(r.company_name) || ''}</td>
       <td>${typeBadge(r.type)}</td>
       <td>${esc(r.title)}</td>
       <td>${esc(r.campaign_name) || '<span class="muted">—</span>'}</td>
@@ -769,14 +781,20 @@ function renderCampaignSteps() {
       <span>Actions</span>`;
     host.appendChild(head);
   }
-  for (const s of editingCampaign.steps) host.appendChild(campaignStepRow(s));
+  editingCampaign.steps.forEach((s, i) => host.appendChild(campaignStepRow(s, i, editingCampaign.steps)));
 }
-function campaignStepRow(s) {
+function campaignStepRow(s, idx, steps) {
   const el = document.createElement('div');
   el.className = 'cstep';
   el.dataset.stepId = s.id;
   el.innerHTML = `
-    <input data-f="step_order" value="${esc(s.step_order)}" title="order">
+    <div class="cstep-order">
+      <span class="num">${s.step_order}</span>
+      <span class="step-move">
+        <button class="move-up sm" title="Move earlier" ${idx === 0 ? 'disabled' : ''}>▲</button>
+        <button class="move-down sm" title="Move later" ${idx === steps.length - 1 ? 'disabled' : ''}>▼</button>
+      </span>
+    </div>
     ${channelField(s.channel)}
     <div>
       <input data-f="purpose" value="${esc(s.purpose)}" placeholder="purpose" style="width:100%;margin-bottom:4px">
@@ -828,6 +846,27 @@ function campaignStepRow(s) {
     try { await api(`/campaigns/${editingCampaign.id}/steps/${s.id}`, { method: 'DELETE' }); await editCampaign(editingCampaign.id); }
     catch (e) { toast(e.message); }
   };
+
+  // Reorder: swap this step with its neighbour and renumber the campaign server-side.
+  // Like Delete, this re-renders all steps — save any in-progress edits to other rows first.
+  const move = async (delta) => {
+    const to = idx + delta;
+    if (to < 0 || to >= steps.length) return;
+    const order = steps.map((x) => x.id);
+    [order[idx], order[to]] = [order[to], order[idx]];
+    try {
+      const updated = await api(`/campaigns/${editingCampaign.id}/reorder`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ order }),
+      });
+      editingCampaign.steps = updated;
+      renderCampaignSteps();
+      toast('Step reordered');
+    } catch (e) { toast(e.message); }
+  };
+  el.querySelector('.move-up').onclick = () => move(-1);
+  el.querySelector('.move-down').onclick = () => move(1);
+
   wireChannels(el);
   return el;
 }
