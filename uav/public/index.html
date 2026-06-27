@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>uav — Radar</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ctext y='14' font-size='14'%3E%F0%9F%9B%B0%EF%B8%8F%3C/text%3E%3C/svg%3E" />
+  <script>
+    (function () {
+      var t = localStorage.getItem('theme');
+      if (!t) t = window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', t);
+    })();
+  </script>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header>
+    <div class="brand">⚡️ Ambition CRM</div>
+    <div class="page-title">
+      <div class="pt-name">🛰️ UAV</div>
+      <div class="pt-desc">Job-posting radar</div>
+    </div>
+    <div class="header-right">
+      <a id="link-sniper" class="linkbtn" target="_blank" rel="noopener"><img class="ico" src="icons/sniper-20.png" alt="" /> Sniper ↗</a>
+      <a id="link-medic" class="linkbtn" target="_blank" rel="noopener"><img class="ico" src="icons/meddic-20.png" alt="" /> Meddic ↗</a>
+      <a id="link-engineer" class="linkbtn" target="_blank" rel="noopener"><img class="ico" src="icons/wrench.png" alt="" /> Engineer ↗</a>
+      <a id="link-specops" class="linkbtn" target="_blank" rel="noopener"><img class="ico" src="icons/shield.png" alt="" /> SpecOps ↗</a>
+      <button id="theme-toggle" title="Toggle light/dark">🌙</button>
+    </div>
+  </header>
+
+  <main>
+    <div class="toolbar">
+      <button id="refresh" class="primary">⟳ Refresh now</button>
+      <div class="seg" id="status-filter">
+        <button data-status="open" class="on">Open</button>
+        <button data-status="closed">Closed</button>
+        <button data-status="all">All</button>
+      </div>
+      <div class="company-picker">
+        <label for="source">Company</label>
+        <select id="source"><option value="">All</option></select>
+      </div>
+      <div class="seg" id="view-toggle" title="Switch layout">
+        <button data-view="cards">▦ Cards</button>
+        <button data-view="list">☰ List</button>
+      </div>
+      <span class="spacer"></span>
+      <span class="queue-note" id="radar-note"></span>
+    </div>
+
+    <div class="panels">
+      <section class="radar-wrap">
+        <div id="radar" class="radar"></div>
+        <div id="radar-empty" class="empty hidden">No roles on the radar yet — click <strong>⟳ Refresh now</strong> to scan the boards.</div>
+      </section>
+      <aside class="history-wrap">
+        <h3 class="panel-title">Activity</h3>
+        <div id="history" class="timeline"></div>
+      </aside>
+    </div>
+  </main>
+
+  <div id="toast" class="toast hidden"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>

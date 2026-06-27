@@ -6,6 +6,7 @@ const $ = (id) => document.getElementById(id);
   const host = location.hostname;
   const medic = $('link-medic'); if (medic) medic.href = `${location.protocol}//${host}:7701/`;
   const sniper = $('link-sniper'); if (sniper) sniper.href = `${location.protocol}//${host}:7700/`;
+  const uav = $('link-uav'); if (uav) uav.href = `${location.protocol}//${host}:7704/`;
   const btn = $('theme-toggle');
   const sync = () => { btn.textContent = document.documentElement.getAttribute('data-theme') === 'light' ? '☀️' : '🌙'; };
   if (btn) {

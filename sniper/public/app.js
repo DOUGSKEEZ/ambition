@@ -5,6 +5,8 @@ const $ = (id) => document.getElementById(id);
 (function initChrome() {
   const link = document.getElementById('cross-link');
   if (link) link.href = `${location.protocol}//${location.hostname}:7701/`; // -> meddic
+  const uav = document.getElementById('link-uav');
+  if (uav) uav.href = `${location.protocol}//${location.hostname}:7704/`; // -> uav
   const btn = document.getElementById('theme-toggle');
   const sync = () => { btn.textContent = document.documentElement.getAttribute('data-theme') === 'light' ? '☀️' : '🌙'; };
   if (btn) {

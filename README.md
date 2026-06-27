@@ -4,7 +4,7 @@ A small squad of local tools _leveraging AI_ for running a sharp, high-volume, *
 Each app owns one job — recon, outreach, ideas, command — and they share one Postgres database and one set of LLM endpoints.  
 LLM calls go either to my local CLio LLM or a 3rd party Foundation Model.
 
-The metaphor is a game squad. Five independently hosted roles:
+The metaphor is a game squad. Six independently hosted roles:
 
 | Role | App | Job | Status |
 |------|-----|-----|--------|
@@ -13,6 +13,7 @@ The metaphor is a game squad. Five independently hosted roles:
 | 🔧 **Engineer** | [`engineer/`](engineer/) | Metrics for optimization — charts of my outbound flow (by type & company) to tune the campaign | **Shipped** · :7702 |
 | ⭐ **Commander** | [`commander/`](commander/) | Strategic Company Overview — aggregate target company news, events, and other informationinto one strategic view | **Planned** |
 | 🎖 **SpecOps** | [`specops/`](specops/) | Convert & prep — a Kanban board of live opportunities (comp, location, target HMs, stage) once an HM engages | **Shipped** · :7703 |
+| 🛰 **UAV** | [`uav/`](uav/) | Radar — daily scan of target companies' job boards for new/closed roles, with application aging (re-apply every 7–14 days) | **Shipped** · :7704 |
 
 ---
 
@@ -59,7 +60,25 @@ This is the page that rolls up the **target companies** selected — the company
 
 ## 🎖 SpecOps — convert & prep
 
-Where Medic runs top-of-funnel outreach, SpecOps takes over once a hiring manager engages. **Shipped:** a **Kanban board** of opportunities, dragged across the pipeline (Initial → Outreach → HM Reply → Screen → Interview → Offer → Closed). Each opportunity anchors on a company (the only required field — a role may be unlisted, so the title is a freeform placeholder and the posting URL is optional), tracks comp / location / first-message & first-reply dates / notes, and links **multiple target HMs** (often a guess) with one markable as primary — the HM *is* the champion of that application. It introduces the **Opportunity** entity the rest of the system lacked, which is also the correlation backbone Engineer will chart against. Interview-prep assembly is the next iteration. See [`specops/specops-plan.md`](specops/specops-plan.md).
+Where Medic runs top-of-funnel outreach, SpecOps takes over once a hiring manager engages. **Shipped:** a **Kanban board** of opportunities, dragged across the pipeline (Pending Apply → Applied / Staged → Pending Draft → Sent / Drafted → HM Reply → Screen & Interview → Decision). Each opportunity anchors on a company (the only required field — a role may be unlisted, so the title is a freeform placeholder and the posting URL is optional), tracks comp / location / first-message & first-reply dates / notes, and links **multiple target HMs** (often a guess) with one markable as primary — the HM *is* the champion of that application. It introduces the **Opportunity** entity the rest of the system lacked, which is also the correlation backbone Engineer will chart against. Interview-prep assembly is the next iteration. See [`specops/specops-plan.md`](specops/specops-plan.md).
+
+## 🛰 UAV — the job-board radar
+
+A "minimap" that watches target companies' job boards so a role can't open (or close) without me
+knowing. Two halves:
+
+- **Pipeline** — a scheduled run (systemd user timer, ~7am) that fetches each configured board,
+  filters to the roles I care about, diffs against what it saw last time, and emails a digest of
+  **new / closed** roles plus anything **due for re-application**.
+- **Radar UI** (:7704) — open roles grouped by company, each with an **application control**: mark a
+  role applied and it starts an aging timer (amber at 7 days, red at 14) so I re-apply every 7–14
+  days to stay fresh in the pool. An activity panel shows the open/close/apply history.
+
+Provider-agnostic by design: each company is one config entry naming an **adapter** (Greenhouse for
+Anthropic, Ashby for OpenAI, …) plus generic filter rules (title contains / required
+department·office·team·location). Adding a company is a config append, not a code change. Owns the
+`job_postings` + `uav_events` tables in the shared DB. See [`uav/uav-plan.md`](uav/uav-plan.md) and
+[`uav/systemd/README.md`](uav/systemd/README.md).
 
 ---
 
@@ -68,7 +87,7 @@ Where Medic runs top-of-funnel outreach, SpecOps takes over once a hiring manage
 The shipped apps are Node 22 ESM + Express serving a vanilla-JS SPA, backed by a shared Postgres database (named `sniper`). Bring up all dev servers in one tmux session:
 
 ```bash
-./start-ambition.sh      # sniper :7700 + meddic :7701 + engineer :7702 + specops :7703, one window each
+./start-ambition.sh      # sniper :7700 + meddic :7701 + engineer :7702 + specops :7703 + uav :7704, one window each
 ./kill-ambition.sh       # stop all
 ```
 
@@ -76,8 +95,9 @@ The shipped apps are Node 22 ESM + Express serving a vanilla-JS SPA, backed by a
 - Medic pipeline → <http://localhost:7701/>
 - Engineer analytics → <http://localhost:7702/>
 - SpecOps board → <http://localhost:7703/>
+- UAV radar → <http://localhost:7704/>
 
-First-time setup for each app is `npm install` + `.env` (and `npm run migrate` for the apps that own tables — Sniper, Medic, SpecOps). All share Sniper's `sniper` database; Medic and SpecOps also serve Sniper's contact photos, so set Sniper up first.
+First-time setup for each app is `npm install` + `.env` (and `npm run migrate` for the apps that own tables — Sniper, Medic, SpecOps, UAV). All share Sniper's `sniper` database; Medic and SpecOps also serve Sniper's contact photos, so set Sniper up first.
 
 ## Shared infrastructure
 
@@ -93,5 +113,6 @@ ambition/
 ├── engineer/      🔧 analytics dashboard (outbound charts)    (shipped :7702)
 ├── commander/     ⭐ company rollup view                      (planned)
 ├── specops/       🎖 opportunity Kanban board                 (shipped :7703)
+├── uav/           🛰 job-board radar + application aging       (shipped :7704)
 ├── start-ambition.sh / kill-ambition.sh
 ```

@@ -1,0 +1,420 @@
+// uav SPA — vanilla JS. A radar of open job postings at foundational-model companies, with
+// per-role application tracking + an aging timer (re-apply every 7-14 days), plus an activity log.
+const $ = (id) => document.getElementById(id);
+
+// --- Theme + cross-app links (shared chrome) ---
+(function initChrome() {
+  const host = location.hostname;
+  const set = (id, port) => { const a = $(id); if (a) a.href = `${location.protocol}//${host}:${port}/`; };
+  set('link-sniper', 7700); set('link-medic', 7701); set('link-engineer', 7702); set('link-specops', 7703);
+  const btn = $('theme-toggle');
+  const sync = () => { btn.textContent = document.documentElement.getAttribute('data-theme') === 'light' ? '☀️' : '🌙'; };
+  if (btn) {
+    sync();
+    btn.onclick = () => {
+      const next = document.documentElement.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
+      document.documentElement.setAttribute('data-theme', next);
+      localStorage.setItem('theme', next);
+      sync();
+    };
+  }
+})();
+
+const api = (path, opts) => fetch(path, opts).then(async (r) => {
+  const body = r.headers.get('content-type')?.includes('json') ? await r.json() : null;
+  if (!r.ok) throw new Error(body?.error || `HTTP ${r.status}`);
+  return body;
+});
+const esc = (s) => (s == null ? '' : String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])));
+function toast(msg) {
+  const t = $('toast'); t.textContent = msg; t.classList.remove('hidden');
+  clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.add('hidden'), 2600);
+}
+const jsonPost = (path, obj) => api(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: obj ? JSON.stringify(obj) : undefined });
+
+// --- State ---
+let CONFIG = { reapplySoftDays: 7, reapplyHardDays: 14, newDays: 3, sources: [] };
+let SOURCE_LABEL = {};
+let SOURCE_CAREERS = {}; // source key -> overall careers-page URL (links the company group header)
+let statusFilter = 'open';
+let sourceFilter = '';
+let asideOpen = false; // is the "Set aside" (rejected/not-interested) section expanded?
+let viewMode = localStorage.getItem('uav-view') === 'list' ? 'list' : 'cards'; // radar layout
+
+// --- Helpers ---
+const EVENT_META = {
+  opened: { cls: 'ev-opened', label: 'opened' },
+  reopened: { cls: 'ev-reopened', label: 'reopened' },
+  closed: { cls: 'ev-closed', label: 'closed' },
+  applied: { cls: 'ev-applied', label: 'applied' },
+  reapplied: { cls: 'ev-applied', label: 're-applied' },
+  rejected: { cls: 'ev-rejected', label: 'rejected' },
+  not_interested: { cls: 'ev-rejected', label: 'not interested' },
+  reactivated: { cls: 'ev-reopened', label: 'reactivated' },
+};
+const DISP_LABEL = { active: 'Active', rejected: 'Rejected', not_interested: 'Not interested' };
+
+function fmtDate(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}
+// Today as YYYY-MM-DD in local time — caps the applied-date picker so you can't pick the future.
+function todayStr() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function relTime(iso) {
+  if (!iso) return '';
+  const diff = (Date.now() - new Date(iso).getTime()) / 1000;
+  if (diff < 90) return 'just now';
+  if (diff < 3600) return `${Math.round(diff / 60)}m ago`;
+  if (diff < 86400) return `${Math.round(diff / 3600)}h ago`;
+  return `${Math.round(diff / 86400)}d ago`;
+}
+
+// The aging badge for an applied role: green fresh, amber at soft cadence, red at hard cadence.
+function reapplyBadge(days) {
+  if (days == null) return '';
+  let cls = 'fresh', note = '';
+  if (days >= CONFIG.reapplyHardDays) { cls = 'overdue'; note = ' · re-apply!'; }
+  else if (days >= CONFIG.reapplySoftDays) { cls = 'due'; note = ' · due'; }
+  return `<span class="age-badge ${cls}">applied ${days}d ago${note}</span>`;
+}
+
+function groupChips(groups, { exclude = [] } = {}) {
+  if (!Array.isArray(groups) || !groups.length) return '';
+  // Show department/team/office/remote chips. Skip raw `location` (it's in the meta line) and
+  // `country` (always the filtered country, e.g. "United States" — redundant noise on the card).
+  // `exclude` drops extra types (the list view trims department/team/office to cut clutter, and
+  // because office duplicates the location text). Remote leads — the most useful flag at a glance.
+  const skip = new Set(['location', 'country', ...exclude]);
+  const visible = groups.filter((g) => !skip.has(g.type));
+  visible.sort((a, b) => (b.type === 'remote' ? 1 : 0) - (a.type === 'remote' ? 1 : 0));
+  return visible.map((g) => {
+    const label = g.type === 'remote' ? '🏠 remote' : esc(g.name);
+    return `<span class="chip ${esc(g.type)}">${label}</span>`;
+  }).join('');
+}
+
+function dispSelect(p) {
+  const opt = (v) => `<option value="${v}"${p.disposition === v ? ' selected' : ''}>${DISP_LABEL[v]}</option>`;
+  return `<select class="disp" data-id="${p.id}" title="Set status">${opt('active')}${opt('rejected')}${opt('not_interested')}</select>`;
+}
+
+// SpecOps stage keys → labels (mirrors specops STAGES) for the "In SpecOps · <stage>" badge.
+const SPECOPS_STAGE = {
+  lead: 'Pending Apply', outreach: 'Applied / Staged', outreach_today: 'Pending Draft',
+  completed_outreach: 'Sent / Drafted', hm_reply: 'HM Reply',
+  screen_interview: 'Screen & Interview', closed: 'Decision',
+};
+// Link a posting to SpecOps (:7703). If already linked to an opportunity, a badge that opens the
+// SpecOps board filtered to that company; otherwise a "Send to SpecOps" deep link that opens the
+// New-Opportunity modal pre-filled (company resolved by name on the SpecOps side). URLSearchParams
+// URL-encodes every value.
+function specOpsLink(p) {
+  const base = `${location.protocol}//${location.hostname}:7703/`;
+  if (p.opportunity_id) {
+    const stage = SPECOPS_STAGE[p.opportunity_stage] || p.opportunity_stage || '';
+    return `<a class="link specops-badge" href="${base}?company_id=${p.company_id}" target="_blank" rel="noopener">✓ In SpecOps${stage ? ' · ' + esc(stage) : ''} ↗</a>`;
+  }
+  const q = new URLSearchParams({
+    newOpp: '1', company: SOURCE_LABEL[p.source] || p.source,
+    role_title: p.title || '', job_posting_url: p.url || '', location: p.location || '',
+    job_posting_id: String(p.id),
+  });
+  return `<a class="link specops-send" href="${base}?${q}" target="_blank" rel="noopener">Send to SpecOps ↗</a>`;
+}
+
+// The apply / re-apply / applied-date controls — shared by the card and list-row layouts so the
+// delegated data-act / input.age-date handlers work identically in both.
+function appliedControl(p) {
+  return p.last_applied_at != null
+    ? `<div class="apply-state">
+         ${reapplyBadge(p.days_since_applied)}
+         <input type="date" class="age-date" data-id="${p.id}" value="${p.last_applied_on || ''}" max="${todayStr()}" title="Change the date you applied">
+         ${p.application_count > 1 ? `<span class="muted sm">×${p.application_count}</span>` : ''}
+         <button class="sm" data-act="reapply" data-id="${p.id}">Re-applied today</button>
+         <button class="sm ghost" data-act="unapply" data-id="${p.id}" title="Undo applied">✕</button>
+       </div>`
+    : `<div class="apply-state"><button class="sm" data-act="apply" data-id="${p.id}">＋ Mark applied</button><span class="not-applied-warn" title="Not applied yet">⚠️</span></div>`;
+}
+
+// The posting title with an inline ↗ link to the posting (compact — frees up the meta line).
+function titleLink(p) {
+  return `${esc(p.title)}${p.url ? ` <a class="link open-arrow" href="${esc(p.url)}" target="_blank" rel="noopener" title="Open posting">↗</a>` : ''}`;
+}
+
+function roleCard(p) {
+  const applied = p.last_applied_at != null;
+  const closed = p.closed_at != null;
+  return `<div class="role-card${closed ? ' closed' : ''}${applied ? ' is-applied' : ''}${p.is_new ? ' is-new' : ''}">
+    <div class="rc-head">
+      <div class="rc-title">${titleLink(p)}</div>
+      ${p.is_new ? '<span class="new-badge">✨ NEW</span>' : ''}
+      ${closed ? '<span class="chip closed-chip">closed</span>' : ''}
+    </div>
+    <div class="rc-meta">
+      ${p.location ? `<span>📍 ${esc(p.location)}</span>` : ''}
+      <span>seen since ${esc(p.first_seen_at)}</span>
+      ${specOpsLink(p)}
+    </div>
+    <div class="rc-chips">${groupChips(p.groups)}</div>
+    <div class="rc-foot">
+      ${appliedControl(p)}
+      <span class="spacer"></span>
+      ${dispSelect(p)}
+    </div>
+  </div>`;
+}
+
+// Dense row for the list view — easier to scan a long radar than cards. Location sits under the
+// title; chips are trimmed to remote/country (department/team/office removed to cut clutter, and
+// office duplicates the location); the applied state is pushed to the far right for quick scanning.
+function roleRow(p) {
+  const applied = p.last_applied_at != null;
+  const closed = p.closed_at != null;
+  const chips = groupChips(p.groups, { exclude: ['department', 'team', 'office'] });
+  return `<div class="role-row${closed ? ' closed' : ''}${applied ? ' is-applied' : ''}${p.is_new ? ' is-new' : ''}">
+    <div class="rr-left">
+      <div class="rr-title">
+        ${p.is_new ? '<span class="new-badge">✨ NEW</span>' : ''}
+        <span class="rr-title-text">${titleLink(p)}</span>
+        ${closed ? '<span class="chip closed-chip">closed</span>' : ''}
+      </div>
+      ${p.location ? `<div class="rr-loc">📍 ${esc(p.location)}</div>` : ''}
+    </div>
+    ${chips ? `<div class="rr-chips">${chips}</div>` : ''}
+    <div class="rr-actions">
+      ${specOpsLink(p)}
+      ${dispSelect(p)}
+    </div>
+    <div class="rr-apply">${appliedControl(p)}</div>
+  </div>`;
+}
+
+// Compact one-line row for a set-aside (rejected / not-interested) role.
+function asideRow(p) {
+  const view = p.url ? `<a class="link" href="${esc(p.url)}" target="_blank" rel="noopener">↗</a>` : '';
+  return `<div class="aside-row">
+    <span class="ar-tag ${esc(p.disposition)}">${esc(DISP_LABEL[p.disposition] || p.disposition)}</span>
+    <span class="ar-co">${esc(SOURCE_LABEL[p.source] || p.source)}</span>
+    <span class="ar-title">${esc(p.title)}</span>
+    <span class="spacer"></span>
+    ${view}
+    <button class="sm" data-act="restore" data-id="${p.id}">↩ Restore</button>
+  </div>`;
+}
+
+// Sort within a company group: NEW first, then due-for-reapply, then not-yet-applied, then
+// freshly-applied at the bottom.
+function radarOrder(p) {
+  if (p.is_new) return 0;
+  if (p.days_since_applied != null && p.days_since_applied >= CONFIG.reapplySoftDays) return 1;
+  if (p.days_since_applied == null) return 2;
+  return 3;
+}
+
+// Company group header — the name links to that company's overall careers page when known.
+function groupHeaderName(src) {
+  const label = esc(SOURCE_LABEL[src] || src);
+  const url = SOURCE_CAREERS[src];
+  return url
+    ? `<a class="rg-name rg-careers" href="${esc(url)}" target="_blank" rel="noopener" title="Open ${label} careers page">${label} ↗</a>`
+    : `<span class="rg-name">${label}</span>`;
+}
+
+function renderRadar(postings) {
+  const wrap = $('radar');
+
+  // Active roles drive the radar; rejected / not-interested are minimized into "Set aside".
+  const active = postings.filter((p) => p.disposition === 'active');
+  const aside = postings.filter((p) => p.disposition !== 'active');
+
+  const list = viewMode === 'list';
+  const renderItem = list ? roleRow : roleCard;
+  const bySource = {};
+  for (const p of active) (bySource[p.source] ||= []).push(p);
+
+  // Show a section for EVERY configured company (in config order), even with zero roles — so an
+  // armed-but-empty source like xAI is still visible. Narrow to one when the company filter is set.
+  let keys = (CONFIG.sources || []).map((s) => s.key);
+  if (!keys.length) keys = Object.keys(bySource).sort(); // fallback if config didn't load
+  keys = keys.filter((k) => !sourceFilter || k === sourceFilter);
+
+  const groups = keys.map((src) => {
+    const rows = (bySource[src] || []).sort((a, b) => radarOrder(a) - radarOrder(b));
+    const body = rows.length
+      ? rows.map(renderItem).join('')
+      : '<div class="rg-empty muted sm">No matching roles right now.</div>';
+    return `<div class="radar-group">
+      <div class="rg-head">${groupHeaderName(src)}<span class="rg-count">${rows.length}</span></div>
+      <div class="rg-list${list ? ' rg-list--list' : ''}">${body}</div>
+    </div>`;
+  });
+
+  $('radar-empty').classList.toggle('hidden', groups.length > 0);
+
+  const asideHtml = aside.length
+    ? `<div class="aside-section${asideOpen ? ' open' : ''}">
+         <button class="aside-toggle">${asideOpen ? '▾' : '▸'} Set aside (${aside.length})</button>
+         <div class="aside-list">${aside.map(asideRow).join('')}</div>
+       </div>`
+    : '';
+
+  wrap.innerHTML = groups.join('') + asideHtml;
+}
+
+function renderHistory(events) {
+  const wrap = $('history');
+  if (!events.length) { wrap.innerHTML = '<div class="empty sm">No activity yet.</div>'; return; }
+  wrap.innerHTML = events.map((e) => {
+    const m = EVENT_META[e.event_type] || { cls: '', label: e.event_type };
+    const co = SOURCE_LABEL[e.source] || e.source;
+    const title = e.url ? `<a class="link" href="${esc(e.url)}" target="_blank" rel="noopener">${esc(e.title)}</a>` : esc(e.title);
+    return `<div class="event">
+      <span class="ev-dot ${m.cls}"></span>
+      <div class="ev-body">
+        <div class="ev-line"><span class="ev-type ${m.cls}">${m.label}</span> ${title}</div>
+        <div class="ev-sub muted sm">${esc(co)} · ${relTime(e.created_at)}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// --- Data loading ---
+async function loadRadar() {
+  const params = new URLSearchParams({ status: statusFilter });
+  if (sourceFilter) params.set('source', sourceFilter);
+  const postings = await api(`/api/postings?${params}`);
+  renderRadar(postings);
+  $('radar-note').textContent =
+    `${postings.length} role${postings.length === 1 ? '' : 's'} · re-apply cadence ${CONFIG.reapplySoftDays}–${CONFIG.reapplyHardDays}d`;
+}
+async function loadHistory() {
+  const events = await api('/api/events?limit=50');
+  renderHistory(events);
+}
+const reload = () => Promise.all([loadRadar(), loadHistory()]);
+
+// --- Events ---
+$('refresh').onclick = async () => {
+  const btn = $('refresh');
+  btn.disabled = true; btn.textContent = '⟳ Scanning…';
+  try {
+    const s = await jsonPost('/api/refresh');
+    const c = s.counts || {};
+    const bits = [];
+    if (c.opened) bits.push(`${c.opened} new`);
+    if (c.reopened) bits.push(`${c.reopened} reopened`);
+    if (c.closed) bits.push(`${c.closed} closed`);
+    if (s.errors?.length) bits.push(`${s.errors.length} source error(s)`);
+    toast(bits.length ? `Scan: ${bits.join(', ')}` : 'Scan complete — no changes');
+    await reload();
+  } catch (err) {
+    toast(`Refresh failed: ${err.message}`);
+  } finally {
+    btn.disabled = false; btn.textContent = '⟳ Refresh now';
+  }
+};
+
+$('status-filter').addEventListener('click', (e) => {
+  const b = e.target.closest('button[data-status]');
+  if (!b) return;
+  statusFilter = b.dataset.status;
+  for (const x of $('status-filter').querySelectorAll('button')) x.classList.toggle('on', x === b);
+  loadRadar();
+});
+
+$('source').addEventListener('change', (e) => { sourceFilter = e.target.value; loadRadar(); });
+
+// Cards ↔ List layout toggle (persisted). Re-renders the current radar in the chosen layout.
+$('view-toggle').addEventListener('click', (e) => {
+  const b = e.target.closest('button[data-view]');
+  if (!b) return;
+  viewMode = b.dataset.view;
+  localStorage.setItem('uav-view', viewMode);
+  for (const x of $('view-toggle').querySelectorAll('button')) x.classList.toggle('on', x === b);
+  loadRadar();
+});
+
+// Apply / re-apply / unapply / restore + the Set-aside toggle (delegated on the radar).
+$('radar').addEventListener('click', async (e) => {
+  // Expand/collapse the minimized rejected/not-interested section.
+  if (e.target.closest('.aside-toggle')) { asideOpen = !asideOpen; loadRadar(); return; }
+
+  const b = e.target.closest('button[data-act]');
+  if (!b) return;
+  const { act, id } = b.dataset;
+  b.disabled = true;
+  try {
+    if (act === 'apply' || act === 'reapply') {
+      await jsonPost(`/api/postings/${id}/apply`);
+      toast(act === 'apply' ? 'Marked applied' : 'Re-apply timer reset');
+    } else if (act === 'unapply') {
+      await jsonPost(`/api/postings/${id}/unapply`);
+      toast('Application cleared');
+    } else if (act === 'restore') {
+      await jsonPost(`/api/postings/${id}/status`, { disposition: 'active' });
+      toast('Restored to active');
+    }
+    await reload();
+  } catch (err) {
+    toast(`Failed: ${err.message}`);
+    b.disabled = false;
+  }
+});
+
+// Card-level change events: disposition dropdown + the editable applied-date picker.
+$('radar').addEventListener('change', async (e) => {
+  const sel = e.target.closest('select.disp');
+  if (sel) {
+    const id = sel.dataset.id;
+    const disposition = sel.value;
+    sel.disabled = true;
+    try {
+      await jsonPost(`/api/postings/${id}/status`, { disposition });
+      toast(disposition === 'active' ? 'Active' : `Set aside: ${DISP_LABEL[disposition]}`);
+      await reload();
+    } catch (err) {
+      toast(`Failed: ${err.message}`);
+      sel.disabled = false;
+    }
+    return;
+  }
+
+  // Correct the applied date (e.g. you actually applied a few days ago).
+  const dateInput = e.target.closest('input.age-date');
+  if (dateInput) {
+    const id = dateInput.dataset.id;
+    const date = dateInput.value;
+    if (!date) return; // cleared — leave the existing date untouched
+    dateInput.disabled = true;
+    try {
+      await jsonPost(`/api/postings/${id}/applied-date`, { date });
+      toast('Applied date updated');
+      await reload();
+    } catch (err) {
+      toast(`Failed: ${err.message}`);
+      dateInput.disabled = false;
+    }
+  }
+});
+
+// --- Init ---
+(async function init() {
+  try {
+    CONFIG = await api('/api/config');
+    SOURCE_LABEL = Object.fromEntries(CONFIG.sources.map((s) => [s.key, s.label]));
+    SOURCE_CAREERS = Object.fromEntries(CONFIG.sources.map((s) => [s.key, s.careersUrl]));
+    const sel = $('source');
+    for (const s of CONFIG.sources) {
+      const o = document.createElement('option');
+      o.value = s.key; o.textContent = s.label; sel.appendChild(o);
+    }
+  } catch { /* config is best-effort; defaults already set */ }
+  // Reflect the persisted layout choice on the toggle.
+  for (const x of $('view-toggle').querySelectorAll('button')) x.classList.toggle('on', x.dataset.view === viewMode);
+  await reload();
+})();

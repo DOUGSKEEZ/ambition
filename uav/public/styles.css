@@ -1,0 +1,175 @@
+:root {
+  --bg: #0f1115;
+  --panel: #181b22;
+  --panel-2: #1f2430;
+  --border: #2a2f3a;
+  --text: #e6e8ec;
+  --muted: #9aa3b2;
+  --accent: #4f8cff;
+  --good: #2ecc71;
+  --bad: #e74c3c;
+  --warn: #f1c40f;
+}
+[data-theme="light"] {
+  --bg: #f4f5f7;
+  --panel: #ffffff;
+  --panel-2: #eef0f3;
+  --border: #d3d8e0;
+  --text: #1a1d23;
+  --muted: #5a6472;
+  --accent: #2f6fe0;
+  --good: #1f9d57;
+  --bad: #d23f31;
+  --warn: #b8860b;
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); font-size: 14px; }
+
+/* --- header chrome (shared with the other apps) --- */
+header { display: flex; align-items: center; gap: 16px; padding: 12px 20px; background: var(--panel); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 20; }
+.header-right { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+a.linkbtn { text-decoration: none; display: inline-flex; align-items: center; gap: 6px; color: var(--accent); padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; }
+a.linkbtn:hover { border-color: var(--accent); }
+.ico { width: 20px; height: 20px; vertical-align: middle; }
+.brand { display: flex; align-items: center; gap: 8px; font-size: 16px; font-weight: 700; white-space: nowrap; }
+.page-title { position: absolute; left: 50%; transform: translateX(-50%); text-align: center; pointer-events: none; }
+.page-title .pt-name { font-size: 18px; font-weight: 800; letter-spacing: .08em; }
+.page-title .pt-desc { font-size: 12px; color: var(--muted); margin-top: 1px; }
+
+button { font: inherit; color: var(--text); background: var(--panel-2); border: 1px solid var(--border); border-radius: 6px; padding: 7px 12px; cursor: pointer; }
+button:hover { border-color: var(--accent); }
+button:disabled { opacity: .55; cursor: default; }
+button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+button.sm { padding: 4px 8px; font-size: 12px; }
+button.ghost { background: none; border-color: transparent; color: var(--muted); }
+button.ghost:hover { color: var(--bad); border-color: var(--border); }
+
+main { padding: 20px; max-width: 1600px; margin: 0 auto; }
+.toolbar { display: flex; gap: 12px; align-items: center; margin-bottom: 16px; flex-wrap: wrap; }
+.spacer { flex: 1; }
+.company-picker { display: flex; align-items: center; gap: 8px; color: var(--muted); }
+.queue-note { color: var(--muted); font-size: 13px; }
+select { font: inherit; color: var(--text); background: var(--panel-2); border: 1px solid var(--border); border-radius: 6px; padding: 7px 10px; }
+
+.muted { color: var(--muted); }
+.sm { font-size: 12px; }
+.hidden { display: none !important; }
+.empty { color: var(--muted); padding: 40px; text-align: center; }
+.empty.sm { padding: 16px; }
+.toast { position: fixed; bottom: 20px; right: 20px; background: var(--panel-2); border: 1px solid var(--accent); padding: 12px 16px; border-radius: 8px; z-index: 60; }
+.link { color: var(--accent); text-decoration: none; }
+.link:hover { text-decoration: underline; }
+
+/* segmented status filter */
+.seg { display: inline-flex; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+.seg button { border: none; border-radius: 0; border-right: 1px solid var(--border); padding: 6px 12px; background: var(--panel); }
+.seg button:last-child { border-right: none; }
+.seg button.on { background: var(--accent); color: #fff; }
+
+/* --- layout: radar + history --- */
+.panels { display: grid; grid-template-columns: 1fr 340px; gap: 18px; align-items: start; }
+@media (max-width: 900px) { .panels { grid-template-columns: 1fr; } }
+.panel-title { margin: 0 0 10px; font-size: 13px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+
+/* radar: groups of role cards by company */
+.radar { display: flex; flex-direction: column; gap: 18px; }
+.radar-group { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+.rg-head { display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-bottom: 1px solid var(--border); }
+.rg-name { font-weight: 700; font-size: 14px; letter-spacing: .02em; }
+.rg-careers { color: var(--text); text-decoration: none; }
+.rg-careers:hover { color: var(--accent); text-decoration: none; }
+.rg-empty { padding: 4px 2px; }
+.rg-count { margin-left: auto; color: var(--muted); font-size: 12px; background: var(--panel-2); border-radius: 999px; padding: 1px 8px; }
+.rg-list { padding: 12px; display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+
+/* --- list view: one dense row per role (toggle in the toolbar) --- */
+.rg-list--list { display: block; padding: 0; }
+.role-row { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding: 9px 14px; border-bottom: 1px solid var(--border); }
+.role-row:last-child { border-bottom: none; }
+.role-row.is-applied { box-shadow: inset 3px 0 0 var(--good); }
+.role-row.closed { opacity: .6; }
+.role-row.is-new { background: color-mix(in srgb, var(--accent) 8%, transparent); }
+/* title (with location stacked underneath) — sized to leave room; doesn't grow, so the applied
+   state's margin-left:auto can push it to the far right of the row for easy scanning. */
+.rr-left { flex: 0 1 380px; min-width: 200px; display: flex; flex-direction: column; gap: 2px; }
+.rr-title { display: flex; align-items: center; gap: 6px; font-weight: 600; }
+.rr-title-text { font-size: 14px; line-height: 1.3; }
+.rr-loc { color: var(--muted); font-size: 12px; }
+.rr-chips { display: flex; flex-wrap: wrap; gap: 5px; flex: 0 1 auto; }
+.rr-actions { display: flex; align-items: center; gap: 10px; font-size: 12px; flex: 0 0 auto; }
+.rr-apply { flex: 0 0 auto; margin-left: auto; display: flex; justify-content: flex-end; }
+.rr-apply .apply-state { margin-top: 0; flex-wrap: nowrap; }
+
+.role-card { background: var(--panel-2); border: 1px solid var(--border); border-radius: 8px; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+.role-card.is-applied { box-shadow: inset 3px 0 0 var(--good); }
+.role-card.closed { opacity: .6; }
+/* a freshly-appeared role: accent ring + glow so it stands out on the radar */
+.role-card.is-new { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent), 0 0 14px -4px var(--accent); }
+.role-card.is-new.is-applied { box-shadow: inset 3px 0 0 var(--good), 0 0 0 1px var(--accent); }
+.new-badge { flex: none; font-size: 10px; font-weight: 800; letter-spacing: .04em; color: #fff; background: var(--accent); border-radius: 999px; padding: 2px 7px; }
+.rc-head { display: flex; align-items: flex-start; gap: 8px; }
+.rc-title { font-weight: 700; font-size: 14px; line-height: 1.3; flex: 1; }
+.rc-foot { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 2px; }
+.rc-foot .spacer { flex: 1; }
+select.disp { font-size: 12px; padding: 4px 6px; color: var(--muted); }
+select.disp:hover { color: var(--text); }
+.rc-meta { display: flex; flex-wrap: wrap; gap: 4px 12px; color: var(--muted); font-size: 12px; }
+.rc-chips { display: flex; flex-wrap: wrap; gap: 5px; }
+.chip { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 11px; background: var(--panel); border: 1px solid var(--border); color: var(--muted); }
+.chip.department { color: var(--accent); border-color: var(--accent); }
+.chip.team { color: var(--warn); border-color: var(--warn); }
+.chip.office { color: var(--good); border-color: var(--good); }
+.chip.country { color: var(--muted); border-color: var(--border); }
+/* remote: filled accent so it pops out of the chip row */
+.chip.remote { color: #fff; background: var(--accent); border-color: var(--accent); font-weight: 600; }
+.chip.closed-chip { color: var(--bad); border-color: var(--bad); }
+
+.apply-state { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 2px; }
+/* passive "not applied yet" indicator next to the Mark-applied button (not a button) */
+.not-applied-warn { font-size: 13px; cursor: default; line-height: 1; }
+.age-badge { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 12px; font-weight: 600; border: 1px solid; }
+.age-badge.fresh { color: var(--good); border-color: var(--good); background: rgba(46, 204, 113, .10); }
+.age-badge.due { color: var(--warn); border-color: var(--warn); background: rgba(241, 196, 15, .12); }
+.age-badge.overdue { color: var(--bad); border-color: var(--bad); background: rgba(231, 76, 60, .12); }
+/* Inline editor for the applied date — compact so it sits next to the aging badge. */
+.age-date { font-size: 12px; padding: 1px 4px; color: var(--muted); background: transparent; border: 1px solid var(--border); border-radius: 6px; cursor: pointer; }
+.age-date:hover { color: var(--fg); border-color: var(--accent); }
+
+/* inline ↗ open-posting arrow next to the title */
+.open-arrow { text-decoration: none; font-weight: 400; margin-left: 2px; }
+.open-arrow:hover { text-decoration: none; }
+
+/* SpecOps link on a role card (in .rc-meta) */
+.specops-send { font-weight: 600; }
+.specops-badge { color: var(--good); border: 1px solid var(--good); background: rgba(46, 204, 113, .10); padding: 1px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; }
+.specops-badge:hover { text-decoration: none; filter: brightness(1.1); }
+
+/* set-aside section: minimized rejected / not-interested roles, collapsed by default */
+.aside-section { margin-top: 6px; }
+.aside-toggle { background: none; border: 1px dashed var(--border); color: var(--muted); width: 100%; text-align: left; padding: 8px 12px; border-radius: 8px; }
+.aside-toggle:hover { color: var(--text); border-color: var(--accent); }
+.aside-section .aside-list { display: none; flex-direction: column; gap: 6px; margin-top: 8px; }
+.aside-section.open .aside-list { display: flex; }
+.aside-row { display: flex; align-items: center; gap: 10px; padding: 6px 12px; background: var(--panel); border: 1px solid var(--border); border-radius: 8px; font-size: 13px; opacity: .85; }
+.aside-row .spacer { flex: 1; }
+.aside-row .ar-co { color: var(--muted); font-size: 12px; }
+.aside-row .ar-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ar-tag { flex: none; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; padding: 1px 7px; border-radius: 999px; border: 1px solid; }
+.ar-tag.rejected { color: var(--bad); border-color: var(--bad); }
+.ar-tag.not_interested { color: var(--muted); border-color: var(--muted); }
+
+/* history timeline */
+.history-wrap { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 14px; position: sticky; top: 78px; max-height: calc(100vh - 100px); overflow-y: auto; }
+.timeline { display: flex; flex-direction: column; gap: 12px; }
+.event { display: flex; gap: 10px; }
+.ev-dot { width: 9px; height: 9px; border-radius: 50%; margin-top: 5px; flex: none; background: var(--muted); }
+.ev-body { min-width: 0; }
+.ev-line { line-height: 1.35; }
+.ev-type { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; margin-right: 4px; }
+.ev-opened { color: var(--good); } .ev-dot.ev-opened { background: var(--good); }
+.ev-reopened { color: var(--accent); } .ev-dot.ev-reopened { background: var(--accent); }
+.ev-closed { color: var(--bad); } .ev-dot.ev-closed { background: var(--bad); }
+.ev-applied { color: #a974ff; } .ev-dot.ev-applied { background: #a974ff; }
+.ev-rejected { color: var(--bad); } .ev-dot.ev-rejected { background: var(--bad); }
+.ev-sub { margin-top: 1px; }
