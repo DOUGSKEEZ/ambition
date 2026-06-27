@@ -8,7 +8,7 @@ const router = Router();
 // here (they heavily drive drafting; Sniper recapture preserves them, so edits survive).
 const TRACKER_FIELDS = new Set([
   'status', 'hot_cold', 'emoji', 'next_action_date', 'last_action_at',
-  'my_notes', 'ai_summary', 'ai_ins', 'label',
+  'my_notes', 'ai_summary', 'ai_ins', 'label', 'staged',
 ]);
 
 // GET /people?company_id=&status=active — roster for a company.

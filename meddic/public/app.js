@@ -5,6 +5,8 @@ const $ = (id) => document.getElementById(id);
 (function initChrome() {
   const link = document.getElementById('cross-link');
   if (link) link.href = `${location.protocol}//${location.hostname}:7700/`; // -> sniper
+  const uav = document.getElementById('link-uav');
+  if (uav) uav.href = `${location.protocol}//${location.hostname}:7704/`; // -> uav
   const btn = document.getElementById('theme-toggle');
   const sync = () => { btn.textContent = document.documentElement.getAttribute('data-theme') === 'light' ? '☀️' : '🌙'; };
   if (btn) {
@@ -74,6 +76,8 @@ function photoUrl(p) {
     : 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36"><rect width="36" height="36" fill="%231f2430"/></svg>');
 }
 function heatBadge(h) { return h ? `<span class="badge ${h}">${h}</span>` : ''; }
+// ✅ when the contact's next outreach is prepared and ready to send (Tracker "ready/staged").
+function stagedIcon(s) { return s ? '<span class="staged-icon" title="Ready / staged — next outreach prepared">✅</span>' : ''; }
 function typeBadge(t) { return t ? `<span class="badge ${t}">${t.replace('_', ' ')}</span>` : ''; }
 
 // Canonical outreach channels for campaign steps. `value` is what's stored; each maps to
@@ -311,7 +315,7 @@ async function loadToday() {
     tr.innerHTML = `
       <td><img class="thumb" src="${photoUrl(r)}"></td>
       <td class="emoji-cell"></td>
-      <td class="name-cell">${esc(r.name)} ${heatBadge(r.hot_cold)} ${r.going_cold ? '<span class="badge cooling">cooling</span>' : ''}</td>
+      <td class="name-cell">${esc(r.name)} ${stagedIcon(r.staged)} ${heatBadge(r.hot_cold)} ${r.going_cold ? '<span class="badge cooling">cooling</span>' : ''}</td>
       <td class="company-col">${esc(r.company_name) || ''}</td>
       <td>${typeBadge(r.type)}</td>
       <td>${esc(r.campaign_name) || '<span class="muted">unassigned</span>'}</td>
@@ -355,11 +359,55 @@ async function loadDone() {
 }
 
 // ---------- Tomorrow (rest of the work week) ----------
+// Same click-to-sort behavior as the Today queue; default keeps the server's order.
+let tomorrowSort = { by: null, dir: 'asc' };
+const TOMORROW_SORT_VALUE = {
+  marker: (r) => r.emoji || null,
+  name: (r) => (r.name || '').toLowerCase() || null,
+  company: (r) => (r.company_name || '').toLowerCase() || null,
+  type: (r) => r.type || null,
+  campaign: (r) => (r.campaign_name || '').toLowerCase() || null,
+  next_step: (r) => (r.next_step_purpose || '').toLowerCase() || null,
+  heat: (r) => r.hot_cold || null,
+  na: (r) => (r.next_action_date ? r.next_action_date.slice(0, 10) : null),
+};
+
+// Reorder rows in place by the active column. Missing values always sink to the bottom.
+function sortTomorrow(rows) {
+  const getVal = TOMORROW_SORT_VALUE[tomorrowSort.by];
+  if (!getVal) return;
+  const sign = tomorrowSort.dir === 'asc' ? 1 : -1;
+  rows.sort((a, b) => {
+    const va = getVal(a), vb = getVal(b);
+    if (va == null && vb == null) return 0;
+    if (va == null) return 1;
+    if (vb == null) return -1;
+    return sign * (va < vb ? -1 : va > vb ? 1 : 0);
+  });
+}
+
+function setTomorrowSort(by) {
+  if (tomorrowSort.by === by) tomorrowSort.dir = tomorrowSort.dir === 'asc' ? 'desc' : 'asc';
+  else tomorrowSort = { by, dir: 'asc' };
+  loadWeek();
+}
+
+function updateTomorrowSortArrows() {
+  document.querySelectorAll('#tomorrow-table th.sortable').forEach((th) => {
+    const active = th.dataset.sort === tomorrowSort.by;
+    th.classList.toggle('active', active);
+    th.querySelector('.arrow').textContent = active ? (tomorrowSort.dir === 'asc' ? ' ▲' : ' ▼') : '';
+  });
+}
+
 async function loadWeek() {
   if (!companyId) return;
+  $('tomorrow-table').classList.toggle('show-company', companyId === 'all');
   const { start, end, rows } = await api(withQS('/queue/week', companyQS()));
   const type = $('tomorrow-type').value;
   const list = type ? rows.filter((r) => r.type === type) : rows;
+  sortTomorrow(list);
+  updateTomorrowSortArrows();
   const body = $('tomorrow-body'); body.innerHTML = '';
   $('tomorrow-empty').classList.toggle('hidden', list.length > 0);
   $('tomorrow-note').textContent = `${list.length} planned · ${fmtDate(start)}–${fmtDate(end)}`;
@@ -369,7 +417,8 @@ async function loadWeek() {
     tr.innerHTML = `
       <td><img class="thumb" src="${photoUrl(r)}"></td>
       <td class="emoji-cell"></td>
-      <td class="name-cell">${esc(r.name)} </td>
+      <td class="name-cell">${esc(r.name)} ${stagedIcon(r.staged)}</td>
+      <td class="company-col">${esc(r.company_name) || ''}</td>
       <td>${typeBadge(r.type)}</td>
       <td>${esc(r.campaign_name) || '<span class="muted">unassigned</span>'}</td>
       <td>${next}</td>
@@ -459,7 +508,7 @@ async function loadRoster() {
     tr.innerHTML = `
       <td><img class="thumb" src="${photoUrl(r)}"></td>
       <td class="emoji-cell"></td>
-      <td class="name-cell">${esc(r.name)} </td>
+      <td class="name-cell">${esc(r.name)} ${stagedIcon(r.staged)}</td>
       <td>${typeBadge(r.type)}</td>
       <td>${esc(r.title)}</td>
       <td>${esc(r.campaign_name) || '<span class="muted">—</span>'}</td>
@@ -497,6 +546,7 @@ async function openPerson(id) {
   $('p-hot_cold').value = person.hot_cold || '';
   $('p-emoji').value = person.emoji || '';
   $('p-next_action_date').value = person.next_action_date ? person.next_action_date.slice(0, 10) : '';
+  $('p-staged').checked = !!person.staged;
   $('p-status').value = person.status || 'active';
   $('p-ai_summary').value = person.ai_summary || '';
   $('p-ai_ins').value = person.ai_ins || '';
@@ -636,6 +686,7 @@ async function saveTracker() {
     hot_cold: $('p-hot_cold').value || null,
     emoji: $('p-emoji').value.trim() || null,
     next_action_date: $('p-next_action_date').value || null,
+    staged: $('p-staged').checked,
     status: $('p-status').value,
   };
   await api(`/people/${person.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
@@ -945,6 +996,9 @@ document.querySelectorAll('#view-roster th.sortable').forEach((th) => {
 });
 document.querySelectorAll('#today-table th.sortable').forEach((th) => {
   th.onclick = () => setTodaySort(th.dataset.sort);
+});
+document.querySelectorAll('#tomorrow-table th.sortable').forEach((th) => {
+  th.onclick = () => setTomorrowSort(th.dataset.sort);
 });
 $('back-from-person').onclick = () => { show(personReturn); reloadCurrent(); };
 $('p-refresh').onclick = () => { if (person) openPerson(person.id).then(() => toast('Refreshed')).catch((e) => toast(e.message)); };

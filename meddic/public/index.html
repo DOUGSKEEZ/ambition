@@ -25,6 +25,7 @@
     </div>
     <div class="header-right">
       <a id="cross-link" class="linkbtn" target="_blank" rel="noopener"><img class="ico" src="icons/sniper-20.png" alt="" /> Sniper ↗</a>
+      <a id="link-uav" class="linkbtn" target="_blank" rel="noopener"><img class="ico" src="icons/uav-20.svg" alt="" /> UAV ↗</a>
       <button id="theme-toggle" title="Toggle light/dark">🌙</button>
     </div>
   </header>
@@ -95,8 +96,8 @@
         <button id="refresh-tomorrow" class="sm">Refresh</button>
       </div>
       <p class="queue-note" id="tomorrow-note"></p>
-      <table>
-        <thead><tr><th></th><th>Marker</th><th>Name</th><th>Type</th><th>Campaign</th><th>Next step</th><th>Heat</th><th>Next action</th></tr></thead>
+      <table id="tomorrow-table">
+        <thead><tr><th></th><th class="sortable" data-sort="marker">Marker<span class="arrow"></span></th><th class="sortable" data-sort="name">Name<span class="arrow"></span></th><th class="company-col sortable" data-sort="company">Company<span class="arrow"></span></th><th class="sortable" data-sort="type">Type<span class="arrow"></span></th><th class="sortable" data-sort="campaign">Campaign<span class="arrow"></span></th><th class="sortable" data-sort="next_step">Next step<span class="arrow"></span></th><th class="sortable" data-sort="heat">Heat<span class="arrow"></span></th><th class="sortable" data-sort="na">Next action<span class="arrow"></span></th></tr></thead>
         <tbody id="tomorrow-body"></tbody>
       </table>
       <div id="tomorrow-empty" class="empty hidden">Nothing scheduled for the rest of the week.</div>
@@ -173,6 +174,7 @@
                 <select id="p-status"><option value="active">active</option><option value="inactive">inactive</option></select>
               </div>
             </div>
+            <label class="check-field"><input type="checkbox" id="p-staged" /> <span>✅ Ready / staged <span class="muted">— next outreach is prepared, ready to send</span></span></label>
             <button id="p-save-tracker" class="primary sm">Save tracker</button>
           </div>
 
