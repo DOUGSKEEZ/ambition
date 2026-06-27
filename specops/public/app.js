@@ -7,6 +7,7 @@ const $ = (id) => document.getElementById(id);
   const sniper = $('link-sniper'); if (sniper) sniper.href = `${location.protocol}//${host}:7700/`;
   const medic = $('link-medic'); if (medic) medic.href = `${location.protocol}//${host}:7701/`;
   const eng = $('link-engineer'); if (eng) eng.href = `${location.protocol}//${host}:7702/`;
+  const uav = $('link-uav'); if (uav) uav.href = `${location.protocol}//${host}:7704/`;
   const btn = $('theme-toggle');
   const sync = () => { btn.textContent = document.documentElement.getAttribute('data-theme') === 'light' ? '☀️' : '🌙'; };
   if (btn) {
@@ -34,14 +35,13 @@ const jsonPut = (path, obj) => api(path, { method: 'PUT', headers: { 'Content-Ty
 const jsonPost = (path, obj) => api(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(obj) });
 
 const STAGES = [
-  { key: 'lead', label: 'Initial' },
-  { key: 'outreach', label: 'Outreach' },
-  { key: 'outreach_today', label: 'Outreach Today' },
-  { key: 'completed_outreach', label: 'Completed Outreach' },
+  { key: 'lead', label: 'Pending Apply' },
+  { key: 'outreach', label: 'Applied / Staged' },
+  { key: 'outreach_today', label: 'Pending Draft' },
+  { key: 'completed_outreach', label: 'Sent / Drafted' },
   { key: 'hm_reply', label: 'HM Reply' },
   { key: 'screen_interview', label: 'Screen & Interview' },
-  { key: 'offer', label: 'Offer' },
-  { key: 'closed', label: 'Closed' },
+  { key: 'closed', label: 'Decision' },
 ];
 const STAGE_LABEL = Object.fromEntries(STAGES.map((s) => [s.key, s.label]));
 const OUTCOMES = ['accepted', 'rejected', 'withdrawn'];
@@ -137,10 +137,14 @@ function renderBoard() {
       ...inStage.map((o) => ({ kind: 'opportunity', so: o.sort_order, html: card(o) })),
       ...dividers.filter((d) => d.stage === s.key).map((d) => ({ kind: 'divider', so: d.sort_order, html: dividerEl(d) })),
     ].sort((a, b) => (a.so ?? Infinity) - (b.so ?? Infinity));
+    // Column collapse-all toggle: if every card in the column is already collapsed, the button
+    // expands them all; otherwise it collapses them all (so a mixed column collapses first).
+    const allCollapsed = inStage.length > 0 && inStage.every((o) => collapsed.has(o.id));
     return `<div class="col ${s.key}" data-stage="${s.key}">
       <div class="col-head">
         <span class="name">${s.label}</span>
         <span class="count">${inStage.length}</span>
+        <button class="col-collapse" data-col-collapse="${s.key}" title="${allCollapsed ? 'Expand all cards' : 'Collapse all cards'}"${inStage.length ? '' : ' disabled'}>${allCollapsed ? '▸' : '▾'}</button>
         <button class="col-add-divider" data-add-divider="${s.key}" title="Add a divider">⎯＋</button>
       </div>
       <div class="col-list">${items.map((it) => it.html).join('')}</div>
@@ -350,6 +354,18 @@ function wireBoard() {
       catch (err) { toast(err.message); }
     });
   });
+  // Column header collapse-all: collapse every card in the stage, or expand them if all are already collapsed.
+  board.querySelectorAll('[data-col-collapse]').forEach((el) => {
+    el.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const ids = opportunities.filter((o) => o.stage === el.dataset.colCollapse).map((o) => o.id);
+      const allCollapsed = ids.length > 0 && ids.every((id) => collapsed.has(id));
+      if (allCollapsed) ids.forEach((id) => collapsed.delete(id));
+      else ids.forEach((id) => collapsed.add(id));
+      saveCollapsed();
+      renderBoard();
+    });
+  });
   // Collapse/expand chevron — toggles the card without opening the detail.
   board.querySelectorAll('[data-collapse]').forEach((el) => {
     el.addEventListener('click', (e) => {
@@ -433,7 +449,10 @@ window.addEventListener('resize', closePopovers);
 const stageOptions = (sel) => STAGES.map((s) => `<option value="${s.key}"${s.key === sel ? ' selected' : ''}>${s.label}</option>`).join('');
 
 // ---- create ----
-function openCreate() {
+// openCreate(prefill?) — prefill is set when arriving from a UAV "Send to SpecOps" deep link:
+// { company_id, role_title, job_posting_url, location, job_posting_id }. The company is preselected
+// and the form pre-filled for review; job_posting_id rides along to record the link on Create.
+function openCreate(prefill) {
   if (!companies.length) { toast('Add a company in Sniper first'); return; }
   const coOpts = companies.map((c) => `<option value="${c.id}">${esc(c.name)}</option>`).join('');
   $('modal-body').classList.remove('two-col');
@@ -453,12 +472,23 @@ function openCreate() {
       <span class="spacer"></span>
       <button id="m-cancel">Cancel</button>
     </div>`;
-  // Pre-select the company the board is currently filtered to, if any.
-  if (companyId !== 'all') { const cs = $('modal-body').querySelector('[data-f="company_id"]'); if (cs) cs.value = String(companyId); }
+  const body = $('modal-body');
+  const setF = (f, v) => { const el = body.querySelector(`[data-f="${f}"]`); if (el != null && v != null) el.value = v; };
+  if (prefill) {
+    // From a UAV deep link: company comes resolved to an id; pre-fill the rest for review.
+    setF('company_id', String(prefill.company_id));
+    setF('role_title', prefill.role_title);
+    setF('job_posting_url', prefill.job_posting_url);
+    setF('location', prefill.location);
+  } else if (companyId !== 'all') {
+    // Otherwise pre-select the company the board is currently filtered to, if any.
+    setF('company_id', String(companyId));
+  }
   $('m-cancel').onclick = closeModal;
   $('m-create').onclick = async () => {
-    const payload = collect($('modal-body'));
+    const payload = collect(body);
     payload.company_id = Number(payload.company_id);
+    if (prefill?.job_posting_id != null) payload.job_posting_id = prefill.job_posting_id;
     try {
       const created = await jsonPost('/opportunities', payload);
       await loadBoard();
@@ -491,6 +521,16 @@ async function renderDetail(o) {
       <div class="field"><label>Company *</label><select data-f="company_id">${companies.map((c) => `<option value="${c.id}"${c.id === o.company_id ? ' selected' : ''}>${esc(c.name)}</option>`).join('')}</select></div>
       <div class="field"><label>Role title</label><input data-f="role_title" type="text" value="${esc(o.role_title)}" placeholder="placeholder is fine"></div>
       <div class="field"><label>Job posting URL</label><input data-f="job_posting_url" type="url" value="${esc(o.job_posting_url)}" placeholder="(optional — many roles aren't listed)"></div>
+      <div class="field">
+        <label>Linked UAV posting <span class="muted" style="text-transform:none;letter-spacing:0">· the radar role this tracks</span></label>
+        ${o.job_posting_id ? `<div class="linked-posting">
+            <span class="lp-info">🛰 ${esc(o.job_posting_title || ('posting #' + o.job_posting_id))}${o.job_posting_closed_at ? ' · closed' : ''}</span>
+            ${o.job_posting_link ? `<a class="link" href="${esc(o.job_posting_link)}" target="_blank" rel="noopener">↗</a>` : ''}
+            <span class="spacer"></span>
+            <button class="sm ghost" id="lp-clear" type="button">Clear</button>
+          </div>`
+        : `<div class="linked-posting" id="lp-picker"><button class="sm" id="lp-link" type="button">＋ Link a UAV posting</button></div>`}
+      </div>
       <div class="row2">
         <div class="field"><label>Comp range</label><input data-f="comp_range" type="text" value="${esc(o.comp_range)}"></div>
         <div class="field"><label>Location</label><input data-f="location" type="text" value="${esc(o.location)}"></div>
@@ -596,6 +636,26 @@ async function renderDetail(o) {
     } catch (e) { toast(e.message); }
   });
 
+  // Linked UAV posting: link/clear persist immediately (like contact actions), then re-render.
+  $('lp-clear')?.addEventListener('click', async () => {
+    try { const upd = await jsonPut(`/opportunities/${o.id}`, { job_posting_id: null }); await renderDetail(upd); refreshUnder(); }
+    catch (e) { toast(e.message); }
+  });
+  $('lp-link')?.addEventListener('click', async () => {
+    try {
+      const list = await api(`/job-postings?company_id=${o.company_id}`);
+      const picker = $('lp-picker');
+      if (!list.length) { picker.innerHTML = '<span class="muted" style="font-size:13px">No open, unlinked UAV postings for this company.</span>'; return; }
+      picker.innerHTML = `<select id="lp-select"><option value="">Pick a posting…</option>${list.map((j) => `<option value="${j.id}">${esc(j.title)}${j.location ? ' — ' + esc(j.location) : ''}</option>`).join('')}</select>`;
+      $('lp-select').onchange = async (e) => {
+        const id = Number(e.target.value);
+        if (!id) return;
+        try { const upd = await jsonPut(`/opportunities/${o.id}`, { job_posting_id: id }); await renderDetail(upd); refreshUnder(); }
+        catch (err) { toast(err.message); }
+      };
+    } catch (e) { toast(e.message); }
+  });
+
   // Card status picker: clicking a swatch/stamp updates its hidden [data-f] input (so it saves with
   // the rest of the form via collect) and moves the active highlight. '' clears the color/stamp.
   const wirePick = (rowId, field) => {
@@ -655,12 +715,41 @@ function collect(root) {
 function refreshUnder() { loadBoard().catch((e) => toast(e.message)); }
 
 // ---------- wiring ----------
-$('new-opp').onclick = openCreate;
+$('new-opp').onclick = () => openCreate(); // no arg — the click event must not become `prefill`
 $('company').onchange = (e) => { companyId = e.target.value === 'all' ? 'all' : Number(e.target.value); updateCompanyIco(); loadBoard().catch((err) => toast(err.message)); };
 
 (async function init() {
   try {
     await loadCompanies();
+    const qs = new URLSearchParams(location.search);
+
+    // View deep link from UAV (a linked posting's badge): ?company_id=<id> → preselect the filter.
+    const viewId = Number.parseInt(qs.get('company_id'), 10);
+    if (Number.isInteger(viewId) && companies.some((c) => c.id === viewId)) {
+      companyId = viewId; $('company').value = String(viewId); updateCompanyIco();
+    }
+
     await loadBoard();
+
+    // Create deep link from UAV "Send to SpecOps":
+    // ?newOpp=1&company=<name>&role_title&job_posting_url&location&job_posting_id
+    if (qs.get('newOpp')) {
+      const name = (qs.get('company') || '').trim();
+      const co = companies.find((c) => c.name.toLowerCase() === name.toLowerCase());
+      if (!co) {
+        toast(`Add '${name}' in Sniper first`);
+      } else {
+        openCreate({
+          company_id: co.id,
+          role_title: qs.get('role_title') || '',
+          job_posting_url: qs.get('job_posting_url') || '',
+          location: qs.get('location') || '',
+          job_posting_id: Number.parseInt(qs.get('job_posting_id'), 10) || null,
+        });
+      }
+    }
+
+    // Strip the params so a refresh doesn't re-trigger the modal/filter (suite pattern).
+    if ([...qs.keys()].length) history.replaceState(null, '', location.pathname);
   } catch (e) { toast(e.message); }
 })();

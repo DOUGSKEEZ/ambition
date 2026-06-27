@@ -3,7 +3,7 @@ import { query, withTransaction } from '../db.js';
 
 const router = Router();
 
-const STAGES = new Set(['lead', 'outreach', 'outreach_today', 'completed_outreach', 'hm_reply', 'screen_interview', 'offer', 'closed']);
+const STAGES = new Set(['lead', 'outreach', 'outreach_today', 'completed_outreach', 'hm_reply', 'screen_interview', 'closed']);
 const OUTCOMES = new Set(['accepted', 'rejected', 'withdrawn']);
 // Card visual status: the "active" accent color (a fixed palette mapped to CSS classes) and an
 // emoji stamp. Kept in lock-step with CARD_COLORS / STAMPS in public/app.js.
@@ -60,6 +60,18 @@ function coerceOutcome(body) {
   if ('stage' in body && clean(body.stage) !== 'closed') body.outcome = null;
 }
 
+// job_posting_id is an INT (link to a UAV posting), so it can't ride the string-only EDITABLE path —
+// it's handled separately like company_id. Returns: undefined = not provided, null = explicit clear,
+// or an integer. Throws on a non-int value. A duplicate link is caught at the DB (unique) → 400.
+function parseJobPostingId(body) {
+  if (!('job_posting_id' in body)) return undefined;
+  const v = clean(body.job_posting_id);
+  if (v === null) return null;
+  const n = Number.parseInt(v, 10);
+  if (!Number.isInteger(n)) throw new Error('invalid job_posting_id');
+  return n;
+}
+
 // SELECT one or all opportunities with company name + an aggregated contacts array.
 function selectOpportunities(whereSql = '', params = []) {
   return query(
@@ -68,6 +80,9 @@ function selectOpportunities(whereSql = '', params = []) {
             to_char(o.first_message_at, 'YYYY-MM-DD') AS first_message_at,
             to_char(o.first_reply_at, 'YYYY-MM-DD') AS first_reply_at,
             o.notes, o.created_at, o.updated_at,
+            o.job_posting_id,
+            jp.title AS job_posting_title, jp.url AS job_posting_link,
+            jp.source AS job_posting_source, jp.closed_at AS job_posting_closed_at,
             COALESCE((
               SELECT json_agg(json_build_object(
                        'person_id', oc.person_id, 'name', p.name, 'title', p.title,
@@ -80,6 +95,7 @@ function selectOpportunities(whereSql = '', params = []) {
             ), '[]'::json) AS contacts
      FROM opportunities o
      JOIN companies c ON c.id = o.company_id
+     LEFT JOIN job_postings jp ON jp.id = o.job_posting_id
      ${whereSql}
      ORDER BY o.sort_order NULLS LAST, o.created_at, o.id`,
     params
@@ -139,6 +155,10 @@ router.post('/', async (req, res) => {
     for (const f of EDITABLE) {
       if (f in req.body) { cols.push(f); vals.push(clean(req.body[f])); }
     }
+    let jobPostingId;
+    try { jobPostingId = parseJobPostingId(req.body); }
+    catch (e) { return res.status(400).json({ error: e.message }); }
+    if (jobPostingId !== undefined) { cols.push('job_posting_id'); vals.push(jobPostingId); }
     const placeholders = vals.map((_, i) => `$${i + 1}`);
     const ins = await query(
       `INSERT INTO opportunities (${cols.join(', ')}) VALUES (${placeholders.join(', ')}) RETURNING id`,
@@ -214,12 +234,17 @@ router.put('/:id', async (req, res) => {
       if (!Number.isInteger(newCompanyId)) return res.status(400).json({ error: 'invalid company_id' });
     }
 
+    let jobPostingId;
+    try { jobPostingId = parseJobPostingId(req.body); }
+    catch (e) { return res.status(400).json({ error: e.message }); }
+
     const sets = [];
     const vals = [];
     for (const f of EDITABLE) {
       if (f in req.body) { vals.push(clean(req.body[f])); sets.push(`${f} = $${vals.length}`); }
     }
     if (newCompanyId !== null) { vals.push(newCompanyId); sets.push(`company_id = $${vals.length}`); }
+    if (jobPostingId !== undefined) { vals.push(jobPostingId); sets.push(`job_posting_id = $${vals.length}`); }
     if (!sets.length) return res.status(400).json({ error: 'nothing to update' });
 
     const updated = await withTransaction(async (client) => {

@@ -7,6 +7,7 @@ import companiesRouter from './routes/companies.js';
 import peopleRouter from './routes/people.js';
 import opportunitiesRouter from './routes/opportunities.js';
 import dividersRouter from './routes/dividers.js';
+import jobPostingsRouter from './routes/job-postings.js';
 
 const ROOT = resolve(import.meta.dirname, '..');
 const PORT = process.env.PORT || 7703;
@@ -20,6 +21,7 @@ app.use('/companies', companiesRouter);
 app.use('/people', peopleRouter);
 app.use('/opportunities', opportunitiesRouter);
 app.use('/dividers', dividersRouter);
+app.use('/job-postings', jobPostingsRouter);
 
 // Serve Sniper's media (same host) so contact photos render on opportunity cards.
 const sniperMedia = (() => {

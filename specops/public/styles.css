@@ -89,6 +89,12 @@ textarea { width: 100%; resize: vertical; min-height: 60px; line-height: 1.5; }
 .col:hover .col-add-divider { opacity: .6; }
 .col-add-divider:hover { opacity: 1; color: var(--accent); border-color: var(--border); }
 
+/* Collapse-all / expand-all toggle in the column header — quiet until you hover the column. */
+.col-collapse { padding: 1px 6px; font-size: 12px; line-height: 1.3; color: var(--muted); background: none; border: 1px solid transparent; opacity: 0; transition: opacity .12s; }
+.col:hover .col-collapse { opacity: .6; }
+.col-collapse:hover { opacity: 1; color: var(--accent); border-color: var(--border); }
+.col-collapse:disabled { opacity: 0; cursor: default; }
+
 /* Board divider — a labeled separator that drags between cards like a card does. */
 .board-divider { cursor: grab; padding: 5px 0; }
 .board-divider:active { cursor: grabbing; }
@@ -190,6 +196,12 @@ textarea { width: 100%; resize: vertical; min-height: 60px; line-height: 1.5; }
 /* import-first-message control + preview */
 .fm-row { display: flex; gap: 8px; }
 .fm-row input { flex: 1; }
+
+/* linked UAV posting control (in the detail modal) */
+.linked-posting { display: flex; align-items: center; gap: 8px; background: var(--panel-2); border: 1px solid var(--border); border-radius: 8px; padding: 7px 10px; }
+.linked-posting .spacer { flex: 1; }
+.linked-posting .lp-info { font-size: 13px; }
+.linked-posting select { flex: 1; }
 .fm-preview { margin: -4px 0 12px; background: var(--panel-2); border: 1px solid var(--border); border-radius: 8px; padding: 10px; white-space: pre-wrap; font-size: 12px; line-height: 1.5; max-height: 160px; overflow-y: auto; }
 .link img.ic14, img.ic14 { width: 14px; height: 14px; vertical-align: -3px; }
 
