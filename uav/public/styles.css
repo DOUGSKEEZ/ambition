@@ -75,7 +75,21 @@ select { font: inherit; color: var(--text); background: var(--panel-2); border: 
 /* radar: groups of role cards by company */
 .radar { display: flex; flex-direction: column; gap: 18px; }
 .radar-group { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
-.rg-head { display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-bottom: 1px solid var(--border); }
+.rg-head { display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-bottom: 1px solid var(--border); cursor: pointer; user-select: none; }
+.rg-head:hover { background: var(--panel-2); }
+/* Drag grip to reorder company groups; quiet until the header is hovered. */
+.rg-grip { color: var(--muted); font-size: 13px; flex: none; cursor: grab; opacity: .35; line-height: 1; }
+.rg-head:hover .rg-grip { opacity: .8; }
+.rg-grip:active { cursor: grabbing; }
+.radar-group.dragging { opacity: .45; }
+/* Insertion line shown on the group the cursor is over while dragging (no layout shift). */
+.radar-group.drop-before { box-shadow: 0 -2px 0 0 var(--accent); }
+.radar-group.drop-after { box-shadow: 0 2px 0 0 var(--accent); }
+/* Caret toggling a company section open/closed. */
+.rg-caret { color: var(--muted); font-size: 11px; width: 12px; text-align: center; flex: none; }
+/* Collapsed: hide the role list and drop the now-danging header divider. */
+.radar-group.collapsed .rg-list { display: none; }
+.radar-group.collapsed .rg-head { border-bottom: none; }
 .rg-name { font-weight: 700; font-size: 14px; letter-spacing: .02em; }
 .rg-careers { color: var(--text); text-decoration: none; }
 .rg-careers:hover { color: var(--accent); text-decoration: none; }

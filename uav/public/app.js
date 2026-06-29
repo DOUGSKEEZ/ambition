@@ -39,6 +39,21 @@ let SOURCE_CAREERS = {}; // source key -> overall careers-page URL (links the co
 let statusFilter = 'open';
 let sourceFilter = '';
 let asideOpen = false; // is the "Set aside" (rejected/not-interested) section expanded?
+// Per-company collapsed sections (persisted): a Set of source keys whose role list is hidden, so
+// the board is easier to scan/scroll. Survives reloads via localStorage.
+let collapsed = new Set(JSON.parse(localStorage.getItem('uav-collapsed') || '[]'));
+const saveCollapsed = () => localStorage.setItem('uav-collapsed', JSON.stringify([...collapsed]));
+
+// Custom company-group order (persisted): an array of source keys. Keys listed here render in this
+// order; any company NOT listed (e.g. a newly-added source) falls back to its config order, after
+// the listed ones. Set by drag-and-drop of the group headers.
+let groupOrder = JSON.parse(localStorage.getItem('uav-group-order') || '[]');
+const saveGroupOrder = () => localStorage.setItem('uav-group-order', JSON.stringify(groupOrder));
+// Stable-sort keys by their position in groupOrder; unlisted keys keep their incoming (config) order.
+function applyGroupOrder(keys) {
+  const pos = new Map(groupOrder.map((k, i) => [k, i]));
+  return [...keys].sort((a, b) => (pos.has(a) ? pos.get(a) : Infinity) - (pos.has(b) ? pos.get(b) : Infinity));
+}
 let viewMode = localStorage.getItem('uav-view') === 'list' ? 'list' : 'cards'; // radar layout
 
 // --- Helpers ---
@@ -241,6 +256,7 @@ function renderRadar(postings) {
   // armed-but-empty source like xAI is still visible. Narrow to one when the company filter is set.
   let keys = (CONFIG.sources || []).map((s) => s.key);
   if (!keys.length) keys = Object.keys(bySource).sort(); // fallback if config didn't load
+  keys = applyGroupOrder(keys); // honor the user's drag-and-drop ordering
   keys = keys.filter((k) => !sourceFilter || k === sourceFilter);
 
   const groups = keys.map((src) => {
@@ -248,8 +264,13 @@ function renderRadar(postings) {
     const body = rows.length
       ? rows.map(renderItem).join('')
       : '<div class="rg-empty muted sm">No matching roles right now.</div>';
-    return `<div class="radar-group">
-      <div class="rg-head">${groupHeaderName(src)}<span class="rg-count">${rows.length}</span></div>
+    const isCollapsed = collapsed.has(src);
+    return `<div class="radar-group${isCollapsed ? ' collapsed' : ''}" data-src="${src}">
+      <div class="rg-head" data-src="${src}" title="${isCollapsed ? 'Expand' : 'Collapse'} ${esc(SOURCE_LABEL[src] || src)}">
+        <span class="rg-grip" title="Drag to reorder">⠿</span>
+        <span class="rg-caret">${isCollapsed ? '▸' : '▾'}</span>
+        ${groupHeaderName(src)}<span class="rg-count">${rows.length}</span>
+      </div>
       <div class="rg-list${list ? ' rg-list--list' : ''}">${body}</div>
     </div>`;
   });
@@ -344,6 +365,17 @@ $('radar').addEventListener('click', async (e) => {
   // Expand/collapse the minimized rejected/not-interested section.
   if (e.target.closest('.aside-toggle')) { asideOpen = !asideOpen; loadRadar(); return; }
 
+  // Collapse/expand a company section. The careers link (.rg-careers) and the drag grip (.rg-grip)
+  // keep their own behavior and don't toggle.
+  const head = e.target.closest('.rg-head');
+  if (head && !e.target.closest('.rg-careers') && !e.target.closest('.rg-grip')) {
+    const src = head.dataset.src;
+    if (collapsed.has(src)) collapsed.delete(src); else collapsed.add(src);
+    saveCollapsed();
+    loadRadar();
+    return;
+  }
+
   const b = e.target.closest('button[data-act]');
   if (!b) return;
   const { act, id } = b.dataset;
@@ -365,6 +397,64 @@ $('radar').addEventListener('click', async (e) => {
     b.disabled = false;
   }
 });
+
+// --- Drag-and-drop reordering of company groups (grip-gated, persisted to localStorage) ---
+// A group is only draggable while its grip is pressed, so the rest of the header still click-toggles.
+let dragSrc = null;
+const clearDropHints = () => { for (const el of $('radar').querySelectorAll('.drop-before, .drop-after')) el.classList.remove('drop-before', 'drop-after'); };
+const cleanupDrag = () => {
+  clearDropHints();
+  for (const el of $('radar').querySelectorAll('.radar-group')) { el.classList.remove('dragging'); el.draggable = false; }
+  dragSrc = null;
+};
+// Where to drop relative to the group under the cursor: after it if past its vertical midpoint.
+const dropsAfter = (e, group) => { const r = group.getBoundingClientRect(); return e.clientY > r.top + r.height / 2; };
+
+$('radar').addEventListener('mousedown', (e) => {
+  const grip = e.target.closest('.rg-grip');
+  if (grip) { const g = grip.closest('.radar-group'); if (g) g.draggable = true; }
+});
+// A plain grip click (no drag) leaves the group draggable; reset it so stray drags can't start.
+$('radar').addEventListener('mouseup', () => { if (!dragSrc) for (const el of $('radar').querySelectorAll('.radar-group[draggable="true"]')) el.draggable = false; });
+
+$('radar').addEventListener('dragstart', (e) => {
+  const g = e.target.closest('.radar-group');
+  if (!g || !g.draggable) return;
+  dragSrc = g.dataset.src;
+  g.classList.add('dragging');
+  e.dataTransfer.effectAllowed = 'move';
+  try { e.dataTransfer.setData('text/plain', dragSrc); } catch { /* Firefox needs setData to begin a drag */ }
+});
+
+$('radar').addEventListener('dragover', (e) => {
+  if (!dragSrc) return;
+  const over = e.target.closest('.radar-group');
+  if (!over) return;
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  clearDropHints();
+  if (over.dataset.src !== dragSrc) over.classList.add(dropsAfter(e, over) ? 'drop-after' : 'drop-before');
+});
+
+$('radar').addEventListener('drop', (e) => {
+  if (!dragSrc) return;
+  const over = e.target.closest('.radar-group');
+  if (!over || over.dataset.src === dragSrc) { cleanupDrag(); return; }
+  e.preventDefault();
+  const after = dropsAfter(e, over);
+  // Rebuild the order from the current DOM, move the dragged key, persist, re-render.
+  const order = [...$('radar').querySelectorAll('.radar-group')].map((el) => el.dataset.src);
+  order.splice(order.indexOf(dragSrc), 1);
+  let to = order.indexOf(over.dataset.src);
+  if (after) to += 1;
+  order.splice(to, 0, dragSrc);
+  groupOrder = order;
+  saveGroupOrder();
+  cleanupDrag();
+  loadRadar();
+});
+
+$('radar').addEventListener('dragend', cleanupDrag);
 
 // Card-level change events: disposition dropdown + the editable applied-date picker.
 $('radar').addEventListener('change', async (e) => {
