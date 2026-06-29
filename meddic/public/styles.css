@@ -146,8 +146,8 @@ tr:hover .emoji-chip.add { opacity: .6; }
 /* Tracker "ready/staged" toggle: an inline checkbox row, not a full-width .field. */
 .check-field { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; cursor: pointer; font-size: 13px; }
 .check-field input { width: auto; margin: 0; }
-/* ✅ ready/staged marker in the list tables — nudge size down to sit beside name text. */
-.staged-icon { font-size: 12px; }
+/* ✅ ready/staged marker in the list tables — sits in the Next action column, before the date. */
+.staged-icon { font-size: 12px; margin-right: 5px; }
 
 a.back { color: var(--accent); cursor: pointer; text-decoration: none; }
 .toast { position: fixed; bottom: 20px; right: 20px; background: var(--panel-2); border: 1px solid var(--accent); padding: 12px 16px; border-radius: 8px; z-index: 50; }
@@ -210,6 +210,9 @@ button.sent-today { background: var(--good); border-color: var(--good); color: #
 /* "Done today" recap sits below the work queue with a clear divider. */
 .done-today { margin-top: 32px; padding-top: 20px; border-top: 1px solid var(--border); }
 .na-input { padding: 2px 6px; font-size: 12px; }
+/* Keep the ✅ staged marker and the date picker on one line (they'd otherwise wrap in a
+   narrow Next action column). */
+.na-cell { white-space: nowrap; }
 .flex { display: flex; gap: 8px; align-items: center; }
 .wrap { flex-wrap: wrap; }
 

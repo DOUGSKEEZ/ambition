@@ -315,13 +315,13 @@ async function loadToday() {
     tr.innerHTML = `
       <td><img class="thumb" src="${photoUrl(r)}"></td>
       <td class="emoji-cell"></td>
-      <td class="name-cell">${esc(r.name)} ${stagedIcon(r.staged)} ${heatBadge(r.hot_cold)} ${r.going_cold ? '<span class="badge cooling">cooling</span>' : ''}</td>
+      <td class="name-cell">${esc(r.name)} ${heatBadge(r.hot_cold)} ${r.going_cold ? '<span class="badge cooling">cooling</span>' : ''}</td>
       <td class="company-col">${esc(r.company_name) || ''}</td>
       <td>${typeBadge(r.type)}</td>
       <td>${esc(r.campaign_name) || '<span class="muted">unassigned</span>'}</td>
       <td>${next}</td>
       <td class="label-cell"></td>
-      <td class="na-cell"></td>`;
+      <td class="na-cell">${stagedIcon(r.staged)}</td>`;
     tr.onclick = (e) => { if (!e.target.closest('.nick, .nick-input, .na-input, .emoji-chip, .emoji-input')) openPerson(r.id); };
     tr.querySelector('.emoji-cell').appendChild(makeEmoji(r.id, r.emoji || ''));
     tr.querySelector('.label-cell').appendChild(makeNick(r.id, r.label || ''));
@@ -417,13 +417,13 @@ async function loadWeek() {
     tr.innerHTML = `
       <td><img class="thumb" src="${photoUrl(r)}"></td>
       <td class="emoji-cell"></td>
-      <td class="name-cell">${esc(r.name)} ${stagedIcon(r.staged)}</td>
+      <td class="name-cell">${esc(r.name)}</td>
       <td class="company-col">${esc(r.company_name) || ''}</td>
       <td>${typeBadge(r.type)}</td>
       <td>${esc(r.campaign_name) || '<span class="muted">unassigned</span>'}</td>
       <td>${next}</td>
       <td>${heatBadge(r.hot_cold)}</td>
-      <td class="na-cell"></td>`;
+      <td class="na-cell">${stagedIcon(r.staged)}</td>`;
     tr.onclick = (e) => { if (!e.target.closest('.nick, .nick-input, .na-input, .emoji-chip, .emoji-input')) openPerson(r.id); };
     tr.querySelector('.name-cell').appendChild(makeNick(r.id, r.label || ''));
     tr.querySelector('.emoji-cell').appendChild(makeEmoji(r.id, r.emoji || ''));
@@ -519,14 +519,14 @@ async function loadRoster() {
     tr.innerHTML = `
       <td><img class="thumb" src="${photoUrl(r)}"></td>
       <td class="emoji-cell"></td>
-      <td class="name-cell">${esc(r.name)} ${stagedIcon(r.staged)}</td>
+      <td class="name-cell">${esc(r.name)}</td>
       <td class="company-col">${esc(r.company_name) || ''}</td>
       <td>${typeBadge(r.type)}</td>
       <td>${esc(r.title)}</td>
       <td>${esc(r.campaign_name) || '<span class="muted">—</span>'}</td>
       <td>${r.current_step ? 'step ' + r.current_step : ''}</td>
       <td>${heatBadge(r.hot_cold)}</td>
-      <td class="muted">${fmtDate(r.next_action_date)}</td>`;
+      <td class="muted">${stagedIcon(r.staged)}${fmtDate(r.next_action_date)}</td>`;
     tr.onclick = (e) => { if (!e.target.closest('.nick, .nick-input, .emoji-chip, .emoji-input')) openPerson(r.id); };
     tr.querySelector('.name-cell').appendChild(makeNick(r.id, r.label || ''));
     tr.querySelector('.emoji-cell').appendChild(makeEmoji(r.id, r.emoji || ''));
