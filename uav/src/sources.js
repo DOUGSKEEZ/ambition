@@ -180,6 +180,33 @@ export const SOURCES = [
       ],
     },
   },
+  {
+    key: 'nvidia',
+    label: 'NVIDIA',
+    careersUrl: 'https://nvidia.wd5.myworkdayjobs.com/NVIDIAExternalCareerSite',
+    provider: 'workday', // first Workday source — cxs JSON API, server-side facets + pagination
+    tenant: 'nvidia',
+    dc: 'wd5',
+    site: 'NVIDIAExternalCareerSite',
+    // Scope at the API level via Workday facets, then title-match. jobFamilyGroup = the "Sales" job
+    // category (282 roles globally); locationHierarchy1 = United States (148 of them) — keeps the
+    // Korea/China/Germany/EMEA account-manager roles off the radar, matching every other US source.
+    // The facet IDs are NVIDIA-tenant-specific opaque hashes (pulled from the board's facet list);
+    // if NVIDIA ever re-keys them the fetch returns 0 and the tracker isolates it.
+    facets: {
+      jobFamilyGroup: ['0c40f6bd1d8f10ae43ffcac5bbec7e90'], // Sales
+      locationHierarchy1: ['2fcb99c455831013ea52fb338f2932d8'], // United States
+    },
+    // Doug's observed NVIDIA target patterns. "Account Manager" alone is a superset of most of these
+    // (Senior/Strategic ISV/General all contain it); the rest are listed for intent + to catch
+    // "Account Leader" and standalone "Sales Specialist". US Sales facet → ~10 roles today.
+    filter: {
+      titleContains: [
+        'Account Manager', 'Senior Account Manager', 'Strategic ISV Account Manager',
+        'General Account Manager', 'Account Leader', 'Sales Specialist',
+      ],
+    },
+  },
 ];
 
 export function getSource(key) {
