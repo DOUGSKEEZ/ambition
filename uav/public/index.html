@@ -46,6 +46,7 @@
         <button data-view="cards">▦ Cards</button>
         <button data-view="list">☰ List</button>
       </div>
+      <button id="collapse-toggle" title="Expand or collapse every company">⊟ Collapse all</button>
       <span class="spacer"></span>
       <span class="queue-note" id="radar-note"></span>
     </div>
@@ -56,7 +57,16 @@
         <div id="radar-empty" class="empty hidden">No roles on the radar yet — click <strong>⟳ Refresh now</strong> to scan the boards.</div>
       </section>
       <aside class="history-wrap">
-        <h3 class="panel-title">Activity</h3>
+        <div class="history-head">
+          <h3 class="panel-title">Activity</h3>
+          <div class="ev-filter" id="event-filter">
+            <button data-group="opened" class="chip">Opened</button>
+            <button data-group="applied" class="chip">Applied</button>
+            <button data-group="closed" class="chip">Closed</button>
+            <button data-group="rejected" class="chip">Rejected</button>
+            <button data-group="not_interested" class="chip">Not interested</button>
+          </div>
+        </div>
         <div id="history" class="timeline"></div>
       </aside>
     </div>

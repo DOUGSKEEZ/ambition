@@ -69,6 +69,24 @@ const EVENT_META = {
 };
 const DISP_LABEL = { active: 'Active', rejected: 'Rejected', not_interested: 'Not interested' };
 
+// Activity filter: each chip is a group of underlying event_type values. Toggling a chip off hides
+// that group from the timeline (server-side, so the 50-row cap counts only what's shown). Persisted.
+const EVENT_GROUPS = {
+  opened: ['opened', 'reopened', 'reactivated'],
+  applied: ['applied', 'reapplied'],
+  closed: ['closed'],
+  rejected: ['rejected'],
+  not_interested: ['not_interested'],
+};
+const ALL_GROUPS = Object.keys(EVENT_GROUPS);
+let eventFilter = (() => {
+  try {
+    const saved = JSON.parse(localStorage.getItem('uav-event-filter'));
+    if (Array.isArray(saved)) return saved.filter((g) => ALL_GROUPS.includes(g));
+  } catch { /* ignore */ }
+  return [...ALL_GROUPS]; // default: show everything
+})();
+
 function fmtDate(iso) {
   if (!iso) return '';
   const d = new Date(iso);
@@ -261,6 +279,7 @@ function renderRadar(postings) {
 
   const groups = keys.map((src) => {
     const rows = (bySource[src] || []).sort((a, b) => radarOrder(a) - radarOrder(b));
+    const pending = rows.filter((r) => r.last_applied_at == null).length; // roles not yet applied to
     const body = rows.length
       ? rows.map(renderItem).join('')
       : '<div class="rg-empty muted sm">No matching roles right now.</div>';
@@ -269,7 +288,13 @@ function renderRadar(postings) {
       <div class="rg-head" data-src="${src}" title="${isCollapsed ? 'Expand' : 'Collapse'} ${esc(SOURCE_LABEL[src] || src)}">
         <span class="rg-grip" title="Drag to reorder">⠿</span>
         <span class="rg-caret">${isCollapsed ? '▸' : '▾'}</span>
-        ${groupHeaderName(src)}<span class="rg-count">${rows.length}</span>
+        ${groupHeaderName(src)}${
+          pending > 0
+            ? `<span class="rg-pending" title="${pending} role${pending === 1 ? '' : 's'} not applied to yet">${pending} not applied</span>`
+            : rows.length > 0
+              ? `<span class="rg-allapplied" title="Applied to every open role">All applied ✅</span>`
+              : ''
+        }<span class="rg-count" title="${rows.length} open role${rows.length === 1 ? '' : 's'}">${rows.length}</span>
       </div>
       <div class="rg-list${list ? ' rg-list--list' : ''}">${body}</div>
     </div>`;
@@ -310,11 +335,29 @@ async function loadRadar() {
   if (sourceFilter) params.set('source', sourceFilter);
   const postings = await api(`/api/postings?${params}`);
   renderRadar(postings);
+  updateCollapseToggle();
   $('radar-note').textContent =
     `${postings.length} role${postings.length === 1 ? '' : 's'} · re-apply cadence ${CONFIG.reapplySoftDays}–${CONFIG.reapplyHardDays}d`;
 }
+// The button reflects what clicking it will do: if every visible company is collapsed, the next
+// click expands all; otherwise it collapses all.
+function visibleSources() {
+  return [...$('radar').querySelectorAll('.radar-group')].map((el) => el.dataset.src);
+}
+function updateCollapseToggle() {
+  const srcs = visibleSources();
+  const allCollapsed = srcs.length > 0 && srcs.every((s) => collapsed.has(s));
+  const btn = $('collapse-toggle');
+  btn.textContent = allCollapsed ? '⊞ Expand all' : '⊟ Collapse all';
+  btn.disabled = srcs.length === 0;
+}
 async function loadHistory() {
-  const events = await api('/api/events?limit=50');
+  if (!eventFilter.length) { // every group hidden — nothing to show, skip the round-trip
+    $('history').innerHTML = '<div class="empty sm">No event types selected.</div>';
+    return;
+  }
+  const types = eventFilter.flatMap((g) => EVENT_GROUPS[g]);
+  const events = await api(`/api/events?limit=50&types=${encodeURIComponent(types.join(','))}`);
   renderHistory(events);
 }
 const reload = () => Promise.all([loadRadar(), loadHistory()]);
@@ -350,6 +393,23 @@ $('status-filter').addEventListener('click', (e) => {
 
 $('source').addEventListener('change', (e) => { sourceFilter = e.target.value; loadRadar(); });
 
+// Activity filter chips: toggle a group in/out of the timeline, persist, reload history.
+function syncEventChips() {
+  for (const b of $('event-filter').querySelectorAll('button[data-group]')) {
+    b.classList.toggle('on', eventFilter.includes(b.dataset.group));
+  }
+}
+$('event-filter').addEventListener('click', (e) => {
+  const b = e.target.closest('button[data-group]');
+  if (!b) return;
+  const g = b.dataset.group;
+  eventFilter = eventFilter.includes(g) ? eventFilter.filter((x) => x !== g) : [...eventFilter, g];
+  localStorage.setItem('uav-event-filter', JSON.stringify(eventFilter));
+  syncEventChips();
+  loadHistory();
+});
+syncEventChips();
+
 // Cards ↔ List layout toggle (persisted). Re-renders the current radar in the chosen layout.
 $('view-toggle').addEventListener('click', (e) => {
   const b = e.target.closest('button[data-view]');
@@ -357,6 +417,16 @@ $('view-toggle').addEventListener('click', (e) => {
   viewMode = b.dataset.view;
   localStorage.setItem('uav-view', viewMode);
   for (const x of $('view-toggle').querySelectorAll('button')) x.classList.toggle('on', x === b);
+  loadRadar();
+});
+
+// Expand/collapse every visible company at once. Collapse-all unless they're all already collapsed.
+$('collapse-toggle').addEventListener('click', () => {
+  const srcs = visibleSources();
+  const allCollapsed = srcs.length > 0 && srcs.every((s) => collapsed.has(s));
+  if (allCollapsed) for (const s of srcs) collapsed.delete(s);
+  else for (const s of srcs) collapsed.add(s);
+  saveCollapsed();
   loadRadar();
 });
 

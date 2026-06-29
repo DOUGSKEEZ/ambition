@@ -70,14 +70,27 @@ router.get('/postings', async (req, res) => {
   }
 });
 
-// GET /api/events?limit=<n> — recent diff/activity history (capped).
+// GET /api/events?limit=<n>&types=<a,b,c> — recent diff/activity history (capped).
+// `types` is a comma-separated allow-list of event_type values; omit it for all types. Filtering
+// happens in SQL so the limit applies to the *visible* set (e.g. screening out not_interested won't
+// leave you with a near-empty feed).
 router.get('/events', async (req, res) => {
   try {
     const limit = Math.min(Math.max(Number.parseInt(req.query.limit, 10) || 50, 1), 200);
+    const types = (req.query.types || '')
+      .split(',')
+      .map((t) => t.trim())
+      .filter(Boolean);
+    const params = [limit];
+    let where = '';
+    if (types.length) {
+      params.push(types);
+      where = `WHERE event_type = ANY($${params.length})`;
+    }
     const r = await query(
       `SELECT id, posting_id, source, job_id, title, url, location, event_type, created_at
-         FROM uav_events ORDER BY created_at DESC, id DESC LIMIT $1`,
-      [limit]
+         FROM uav_events ${where} ORDER BY created_at DESC, id DESC LIMIT $1`,
+      params
     );
     res.json(r.rows);
   } catch (err) {

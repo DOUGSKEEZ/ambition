@@ -95,6 +95,9 @@ select { font: inherit; color: var(--text); background: var(--panel-2); border: 
 .rg-careers:hover { color: var(--accent); text-decoration: none; }
 .rg-empty { padding: 4px 2px; }
 .rg-count { margin-left: auto; color: var(--muted); font-size: 12px; background: var(--panel-2); border-radius: 999px; padding: 1px 8px; }
+.rg-pending { margin-left: auto; color: var(--bad); font-size: 12px; font-weight: 600; border: 1px solid color-mix(in srgb, var(--bad) 45%, transparent); border-radius: 999px; padding: 1px 8px; }
+.rg-allapplied { margin-left: auto; color: var(--good); font-size: 12px; font-weight: 600; border: 1px solid color-mix(in srgb, var(--good) 45%, transparent); border-radius: 999px; padding: 1px 8px; }
+.rg-pending + .rg-count, .rg-allapplied + .rg-count { margin-left: 0; }
 .rg-list { padding: 12px; display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
 
 /* --- list view: one dense row per role (toggle in the toolbar) --- */
@@ -175,6 +178,11 @@ select.disp:hover { color: var(--text); }
 
 /* history timeline */
 .history-wrap { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 14px; position: sticky; top: 78px; max-height: calc(100vh - 100px); overflow-y: auto; }
+.history-head { margin-bottom: 12px; }
+.history-head .panel-title { margin: 0; }
+.ev-filter { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.ev-filter .chip { font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 999px; border: 1px solid var(--border); background: var(--panel); color: var(--muted); cursor: pointer; opacity: .5; }
+.ev-filter .chip.on { opacity: 1; color: var(--text); border-color: var(--accent); }
 .timeline { display: flex; flex-direction: column; gap: 12px; }
 .event { display: flex; gap: 10px; }
 .ev-dot { width: 9px; height: 9px; border-radius: 50%; margin-top: 5px; flex: none; background: var(--muted); }
