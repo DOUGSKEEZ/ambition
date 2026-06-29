@@ -138,6 +138,24 @@ export const SOURCES = [
     },
   },
   {
+    key: 'mistral',
+    label: 'Mistral', // matches the Sniper company "Mistral" so Send-to-SpecOps resolves it
+    careersUrl: 'https://jobs.lever.co/mistral',
+    provider: 'lever',
+    board: 'mistral',
+    // Mistral (Lever) "Account Executive" roles in the US. Lever has no numeric ids and leaves the
+    // department empty here (team = "Business"), so we scope by TITLE + the ISO-2 `country` group
+    // ("US"). Country (not city) because the SF role is tagged location "Palo Alto" and a future US
+    // city would otherwise be missed; this drops the FR/DE/UK enterprise-AE roles. Currently matches
+    // "Account Executive, Enterprise - New York" and "...- SF Bay Area".
+    filter: {
+      titleContains: ['Account Executive'],
+      requireGroups: [
+        { type: 'country', name: 'US' },
+      ],
+    },
+  },
+  {
     key: 'databricks',
     label: 'Databricks', // matches the Sniper company "Databricks" so Send-to-SpecOps resolves it
     careersUrl: 'https://www.databricks.com/company/careers/open-positions?department=Sales&location=USCA',

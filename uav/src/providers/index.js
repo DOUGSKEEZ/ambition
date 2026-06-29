@@ -3,11 +3,13 @@
 import * as greenhouse from './greenhouse.js';
 import * as ashby from './ashby.js';
 import * as google from './google.js';
+import * as lever from './lever.js';
 
 export const PROVIDERS = {
   greenhouse,
   ashby,
   google,
+  lever,
 };
 
 export function getProvider(name) {
