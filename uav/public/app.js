@@ -302,6 +302,7 @@ function renderRadar(postings) {
   const groups = keys.map((src) => {
     const rows = (bySource[src] || []).sort((a, b) => radarOrder(a) - radarOrder(b));
     const pending = rows.filter((r) => r.last_applied_at == null).length; // roles not yet applied to
+    const applied = rows.length - pending; // roles already applied to
     const capped = !!(quota[src] && quota[src].full); // at the application cap → unapplied roles aren't actionable
     const body = rows.length
       ? rows.map(renderItem).join('')
@@ -312,11 +313,13 @@ function renderRadar(postings) {
         <span class="rg-grip" title="Drag to reorder">⠿</span>
         <span class="rg-caret">${isCollapsed ? '▸' : '▾'}</span>
         ${groupHeaderName(src)}<span class="rg-meta">${quotaBadge(src)}${
+          applied > 0
+            ? `<span class="rg-applied" title="${applied} role${applied === 1 ? '' : 's'} applied to${pending === 0 ? ' — every open role' : ''}">${applied} applied${pending === 0 ? ' ✅' : ''}</span>`
+            : ''
+        }${
           pending > 0
             ? `<span class="rg-pending${capped ? ' capped' : ''}" title="${pending} role${pending === 1 ? '' : 's'} not applied to yet${capped ? ' — at the application cap, so not actionable right now' : ''}">${pending} not applied</span>`
-            : rows.length > 0
-              ? `<span class="rg-allapplied" title="Applied to every open role">All applied ✅</span>`
-              : ''
+            : ''
         }<span class="rg-count" title="${rows.length} open role${rows.length === 1 ? '' : 's'}">${rows.length}</span></span>
       </div>
       <div class="rg-list${list ? ' rg-list--list' : ''}">${body}</div>
