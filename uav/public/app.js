@@ -43,6 +43,9 @@ let asideOpen = false; // is the "Set aside" (rejected/not-interested) section e
 // the board is easier to scan/scroll. Survives reloads via localStorage.
 let collapsed = new Set(JSON.parse(localStorage.getItem('uav-collapsed') || '[]'));
 const saveCollapsed = () => localStorage.setItem('uav-collapsed', JSON.stringify([...collapsed]));
+// Per-company application-quota status (source key → {used,max,windowDays,full,...}) from /api/quota,
+// for companies that cap applications in a rolling window (e.g. Google 3/30d, OpenAI 5/180d).
+let quota = {};
 
 // Custom company-group order (persisted): an array of source keys. Keys listed here render in this
 // order; any company NOT listed (e.g. a newly-added source) falls back to its config order, after
@@ -258,6 +261,25 @@ function groupHeaderName(src) {
     : `<span class="rg-name">${label}</span>`;
 }
 
+// The header application-quota chip for a rate-limited company. Counts toward the company's rolling
+// window (Google 3/30d, OpenAI 5/180d). Red when the quota is full (with days until you can apply
+// again), amber when one slot is left, green otherwise. Empty for companies without a configured cap.
+function quotaBadge(src) {
+  const q = quota[src];
+  if (!q) return '';
+  const cls = q.full ? 'q-full' : (q.remaining <= 1 ? 'q-low' : 'q-ok');
+  let days = '', title;
+  if (q.full) {
+    days = ` · ${q.nextSlotInDays}d`;
+    title = `Application quota full — ${q.used}/${q.max} in the last ${q.windowDays}d. Next slot frees in ${q.nextSlotInDays} day${q.nextSlotInDays === 1 ? '' : 's'}.`;
+  } else {
+    if (q.oldestFreesInDays != null) days = ` · ${q.oldestFreesInDays}d`;
+    title = `${q.used}/${q.max} applications used in the last ${q.windowDays}d`
+      + (q.oldestFreesInDays != null ? ` · oldest ages out in ${q.oldestFreesInDays} day${q.oldestFreesInDays === 1 ? '' : 's'}` : '');
+  }
+  return `<span class="rg-quota ${cls}" title="${esc(title)}">${q.used}/${q.max}${days}</span>`;
+}
+
 function renderRadar(postings) {
   const wrap = $('radar');
 
@@ -280,6 +302,7 @@ function renderRadar(postings) {
   const groups = keys.map((src) => {
     const rows = (bySource[src] || []).sort((a, b) => radarOrder(a) - radarOrder(b));
     const pending = rows.filter((r) => r.last_applied_at == null).length; // roles not yet applied to
+    const capped = !!(quota[src] && quota[src].full); // at the application cap → unapplied roles aren't actionable
     const body = rows.length
       ? rows.map(renderItem).join('')
       : '<div class="rg-empty muted sm">No matching roles right now.</div>';
@@ -288,13 +311,13 @@ function renderRadar(postings) {
       <div class="rg-head" data-src="${src}" title="${isCollapsed ? 'Expand' : 'Collapse'} ${esc(SOURCE_LABEL[src] || src)}">
         <span class="rg-grip" title="Drag to reorder">⠿</span>
         <span class="rg-caret">${isCollapsed ? '▸' : '▾'}</span>
-        ${groupHeaderName(src)}${
+        ${groupHeaderName(src)}<span class="rg-meta">${quotaBadge(src)}${
           pending > 0
-            ? `<span class="rg-pending" title="${pending} role${pending === 1 ? '' : 's'} not applied to yet">${pending} not applied</span>`
+            ? `<span class="rg-pending${capped ? ' capped' : ''}" title="${pending} role${pending === 1 ? '' : 's'} not applied to yet${capped ? ' — at the application cap, so not actionable right now' : ''}">${pending} not applied</span>`
             : rows.length > 0
               ? `<span class="rg-allapplied" title="Applied to every open role">All applied ✅</span>`
               : ''
-        }<span class="rg-count" title="${rows.length} open role${rows.length === 1 ? '' : 's'}">${rows.length}</span>
+        }<span class="rg-count" title="${rows.length} open role${rows.length === 1 ? '' : 's'}">${rows.length}</span></span>
       </div>
       <div class="rg-list${list ? ' rg-list--list' : ''}">${body}</div>
     </div>`;
@@ -333,7 +356,12 @@ function renderHistory(events) {
 async function loadRadar() {
   const params = new URLSearchParams({ status: statusFilter });
   if (sourceFilter) params.set('source', sourceFilter);
-  const postings = await api(`/api/postings?${params}`);
+  const [postings, quotaList] = await Promise.all([
+    api(`/api/postings?${params}`),
+    api('/api/quota'),
+  ]);
+  quota = {};
+  for (const q of quotaList) quota[q.source] = q;
   renderRadar(postings);
   updateCollapseToggle();
   $('radar-note').textContent =

@@ -48,6 +48,9 @@ export const SOURCES = [
         { type: 'country', name: 'United States' },
       ],
     },
+    // OpenAI caps applications at 5 per rolling 180-day window. The header quota badge counts the
+    // applied/reapplied events in that window (see GET /api/quota).
+    appLimit: { max: 5, windowDays: 180 },
   },
   {
     key: 'cursor',
@@ -106,6 +109,8 @@ export const SOURCES = [
         { type: 'location', name: ['New York', 'San Francisco', 'Los Angeles'] },
       ],
     },
+    // Google caps applications at 3 per rolling 30-day window (see GET /api/quota).
+    appLimit: { max: 3, windowDays: 30 },
   },
   {
     key: 'arize',

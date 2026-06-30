@@ -94,10 +94,16 @@ select { font: inherit; color: var(--text); background: var(--panel-2); border: 
 .rg-careers { color: var(--text); text-decoration: none; }
 .rg-careers:hover { color: var(--accent); text-decoration: none; }
 .rg-empty { padding: 4px 2px; }
-.rg-count { margin-left: auto; color: var(--muted); font-size: 12px; background: var(--panel-2); border-radius: 999px; padding: 1px 8px; }
-.rg-pending { margin-left: auto; color: var(--bad); font-size: 12px; font-weight: 600; border: 1px solid color-mix(in srgb, var(--bad) 45%, transparent); border-radius: 999px; padding: 1px 8px; }
-.rg-allapplied { margin-left: auto; color: var(--good); font-size: 12px; font-weight: 600; border: 1px solid color-mix(in srgb, var(--good) 45%, transparent); border-radius: 999px; padding: 1px 8px; }
-.rg-pending + .rg-count, .rg-allapplied + .rg-count { margin-left: 0; }
+.rg-meta { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; flex: none; }
+.rg-count { color: var(--muted); font-size: 12px; background: var(--panel-2); border-radius: 999px; padding: 1px 8px; }
+.rg-pending { color: var(--bad); font-size: 12px; font-weight: 600; border: 1px solid color-mix(in srgb, var(--bad) 45%, transparent); border-radius: 999px; padding: 1px 8px; }
+.rg-pending.capped { color: var(--muted); border-color: var(--border); } /* at the cap → no urgency */
+.rg-allapplied { color: var(--good); font-size: 12px; font-weight: 600; border: 1px solid color-mix(in srgb, var(--good) 45%, transparent); border-radius: 999px; padding: 1px 8px; }
+/* application-quota chip (rate-limited companies) */
+.rg-quota { font-size: 12px; font-weight: 700; border-radius: 999px; padding: 1px 8px; border: 1px solid; white-space: nowrap; }
+.rg-quota.q-ok { color: var(--good); border-color: color-mix(in srgb, var(--good) 45%, transparent); }
+.rg-quota.q-low { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 50%, transparent); }
+.rg-quota.q-full { color: var(--muted); background: var(--panel-2); border-color: var(--border); } /* capped: no action possible, so no urgency */
 .rg-list { padding: 12px; display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
 
 /* --- list view: one dense row per role (toggle in the toolbar) --- */
