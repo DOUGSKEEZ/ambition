@@ -1,0 +1,271 @@
+// commander SPA — vanilla JS. Company-intelligence dashboard: per-company separated feeds (news /
+// blog / events / financials, each with an AI "Today's summary" line), curated intel, and an
+// AI SITREP that synthesizes the other apps' data. Hash-routed: #/ = dashboard, #/company/<key>.
+const $ = (id) => document.getElementById(id);
+
+// --- Theme + cross-app links (shared chrome) ---
+(function initChrome() {
+  const host = location.hostname;
+  const set = (id, port) => { const a = $(id); if (a) a.href = `${location.protocol}//${host}:${port}/`; };
+  set('link-sniper', 7700); set('link-medic', 7701); set('link-engineer', 7702); set('link-specops', 7703); set('link-uav', 7704);
+  const btn = $('theme-toggle');
+  const sync = () => { btn.textContent = document.documentElement.getAttribute('data-theme') === 'light' ? '☀️' : '🌙'; };
+  if (btn) {
+    sync();
+    btn.onclick = () => {
+      const next = document.documentElement.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
+      document.documentElement.setAttribute('data-theme', next);
+      localStorage.setItem('theme', next);
+      sync();
+    };
+  }
+})();
+
+const api = (path, opts) => fetch(path, opts).then(async (r) => {
+  const body = r.headers.get('content-type')?.includes('json') ? await r.json() : null;
+  if (!r.ok) throw new Error(body?.error || `HTTP ${r.status}`);
+  return body;
+});
+const esc = (s) => (s == null ? '' : String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])));
+const jsonPost = (path, obj) => api(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: obj ? JSON.stringify(obj) : undefined });
+function toast(msg) {
+  const t = $('toast'); t.textContent = msg; t.classList.remove('hidden');
+  clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.add('hidden'), 2600);
+}
+
+const KIND_LABEL = { news: 'News', blog: 'Blog', event: 'Events', financial: 'Financials' };
+const KIND_ORDER = ['news', 'blog', 'event', 'financial'];
+const fmtDate = (d) => (d ? new Date(d).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) : '');
+const fmtWhen = (d) => (d ? `updated ${new Date(d).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}` : '');
+const app = () => $('app');
+
+// --- SITREP block (shared by dashboard + company view) ---
+function sitrepHTML(sitrep, { scope, label }) {
+  const body = sitrep?.narrative
+    ? `<div class="sitrep-body">${esc(sitrep.narrative)}</div>`
+    : `<div class="sitrep-body">No SITREP yet — click <strong>Brief me</strong> to generate one.</div>`;
+  return `<div class="sitrep ${sitrep?.narrative ? '' : 'pending'}">
+    <div class="sitrep-head">
+      <span class="sitrep-title">⭐ SITREP · ${esc(label)}</span>
+      <button class="sm" data-sitrep="${esc(scope)}">Brief me ↻</button>
+      <span class="sitrep-when">${esc(sitrep?.generated_at ? fmtWhen(sitrep.generated_at) : '')}</span>
+    </div>${body}</div>`;
+}
+
+// ======================= DASHBOARD =======================
+async function renderDashboard() {
+  app().innerHTML = `<div class="empty">Loading intelligence…</div>`;
+  let data;
+  try { data = await api('/api/companies'); } catch (e) { app().innerHTML = `<div class="empty">${esc(e.message)}</div>`; return; }
+
+  const cards = data.companies.map((c) => {
+    const feeds = KIND_ORDER.filter((k) => c.kinds.includes(k)).map((k) => {
+      const h = c.headlines[k];
+      const head = h ? `<span class="fh-title">${esc(h.title)}</span>` : `<span class="muted">—</span>`;
+      return `<div class="feedline"><span class="fk ${k}">${esc(KIND_LABEL[k])}</span><span class="fh">${head}</span></div>`;
+    }).join('');
+    const unread = c.counts.unread ? `<span class="badge unread">${c.counts.unread} new</span>` : '';
+    const sr = c.sitrep?.narrative ? `<div class="ccard-sitrep">${esc(c.sitrep.narrative)}</div>` : '';
+    return `<div class="ccard" data-key="${esc(c.key)}">
+      <div class="ccard-head">
+        <span class="ccard-name">${esc(c.label)}</span>
+        <span class="ccard-meta"><span class="badge ${c.profile}">${esc(c.profile)}</span>${unread}</span>
+      </div>
+      <div class="ccard-feeds">${feeds || '<div class="muted sm">No feeds configured</div>'}</div>
+      ${sr}
+    </div>`;
+  }).join('');
+
+  app().innerHTML = `
+    ${sitrepHTML(data.sitrep, { scope: 'all', label: 'Whole campaign' })}
+    <div class="toolbar">
+      <button id="refresh-all" class="primary">⟳ Refresh all intelligence</button>
+      <span class="spacer"></span>
+      <span class="muted sm">${data.companies.length} companies watched</span>
+    </div>
+    <div class="cards">${cards}</div>`;
+}
+
+// ======================= COMPANY VIEW =======================
+async function renderCompany(key) {
+  app().innerHTML = `<div class="empty">Loading…</div>`;
+  let data;
+  try { data = await api(`/api/company/${encodeURIComponent(key)}`); } catch (e) { app().innerHTML = `<div class="empty">${esc(e.message)}</div>`; return; }
+  const s = data.source;
+  CURRENT.label = s.label;
+
+  const feedCols = KIND_ORDER.filter((k) => data.feeds[k]).map((k) => {
+    const f = data.feeds[k];
+    const digest = f.digest?.summary
+      ? `<div class="feedcol-digest"><span class="dg-label">Today's summary:</span> ${esc(f.digest.summary)}</div>`
+      : `<div class="feedcol-digest pending">No AI summary yet.</div>`;
+    const items = f.items.length ? f.items.map((it) => itemHTML(it, k)).join('') : `<div class="empty" style="padding:20px">No items yet.</div>`;
+    return `<div class="feedcol">
+      <div class="feedcol-head"><div class="feedcol-title">${esc(KIND_LABEL[k])}</div>${digest}</div>
+      <div class="feedcol-list">${items}</div>
+    </div>`;
+  }).join('');
+
+  app().innerHTML = `
+    <div class="toolbar"><button class="sm" data-nav="#/">← All companies</button></div>
+    <div class="co-head">
+      <span class="co-title">${esc(s.label)}</span>
+      <span class="badge ${s.profile}">${esc(s.profile)}</span>
+      <div class="co-actions">
+        <a class="linkbtn" href="${esc(s.homeUrl)}" target="_blank" rel="noopener">Site ↗</a>
+        ${s.xListUrl ? `<a class="linkbtn" href="${esc(s.xListUrl)}" target="_blank" rel="noopener">X List ↗</a>` : ''}
+        <button class="primary" data-refresh="${esc(s.key)}">⟳ Refresh</button>
+      </div>
+    </div>
+    ${sitrepHTML(data.sitrep, { scope: s.label, label: s.label })}
+    <div class="co-layout">
+      <div><div class="feeds-grid">${feedCols || '<div class="empty">No feeds configured.</div>'}</div></div>
+      <aside class="intel">${intelHTML(s.label, data.intel, data.intelDocs)}</aside>
+    </div>`;
+}
+
+function itemHTML(it, kind) {
+  const date = it.event_start ? fmtDate(it.event_start) : fmtDate(it.published_at);
+  const loc = it.event_location ? `<div class="fi-loc">📍 ${esc(it.event_location)}</div>` : '';
+  const sum = it.ai_summary || it.summary;
+  return `<div class="fitem ${it.is_read ? '' : 'unread'}" data-item="${it.id}">
+    ${date ? `<div class="fi-date">${esc(date)}</div>` : ''}
+    <div class="fi-title">${it.url ? `<a href="${esc(it.url)}" target="_blank" rel="noopener">${esc(it.title)} ↗</a>` : esc(it.title)}</div>
+    ${loc}
+    ${sum ? `<div class="fi-sum">${esc(sum)}</div>` : ''}
+  </div>`;
+}
+
+// Intel panel: existing sections + any seed docs not yet filled. Each section expands to a viewer;
+// "Edit" swaps in a textarea saved via PUT /api/intel/:company/:section.
+function intelHTML(company, intel, docs) {
+  const bySection = new Map(intel.map((r) => [r.section, r]));
+  const order = [];
+  for (const d of docs || []) if (!order.includes(d.section)) order.push(d.section);
+  for (const r of intel) if (!order.includes(r.section)) order.push(r.section);
+  const docFor = (sec) => (docs || []).find((d) => d.section === sec);
+
+  const secs = order.map((sec) => {
+    const row = bySection.get(sec);
+    const doc = docFor(sec);
+    const title = row?.title || doc?.title || sec.replace(/_/g, ' ');
+    const src = row?.source_url || doc?.url;
+    const bodyView = row?.body
+      ? `<div class="md">${esc(row.body)}</div>`
+      : `<div class="intel-empty">Empty${doc && !row ? ` — seed from ${src ? `<a class="link intel-src" href="${esc(src)}" target="_blank" rel="noopener">source ↗</a>` : 'source'}` : ''}.</div>`;
+    return `<div class="intel-sec" data-section="${esc(sec)}">
+      <div class="intel-sec-head"><span class="intel-sec-name">${esc(title)}</span><span class="spacer"></span>
+        ${src ? `<a class="link intel-src" href="${esc(src)}" target="_blank" rel="noopener">↗</a>` : ''}
+        <button class="sm ghost" data-edit-intel="${esc(sec)}">Edit</button>
+      </div>
+      <div class="intel-sec-body">${bodyView}</div>
+    </div>`;
+  }).join('');
+
+  return `<h3>Intel — ${esc(company)}</h3>${secs || '<div class="intel-empty">No intel sections yet.</div>'}
+    <button class="sm ghost" data-add-intel="1" style="margin-top:6px">+ Add section</button>`;
+}
+
+// ======================= actions =======================
+async function doRefresh(btn, companyKey) {
+  const label = btn.textContent;
+  btn.disabled = true; btn.textContent = '⟳ Refreshing…';
+  try {
+    const q = companyKey ? `?company=${encodeURIComponent(companyKey)}` : '';
+    const r = await jsonPost(`/api/refresh${q}`);
+    toast(`${r.added} new item(s)${r.errors?.length ? `, ${r.errors.length} feed error(s)` : ''}`);
+    route();
+  } catch (e) {
+    toast(e.message); btn.disabled = false; btn.textContent = label;
+  }
+}
+
+async function doSitrep(scope, btn) {
+  const t = btn.textContent; btn.disabled = true; btn.textContent = 'Briefing…';
+  try {
+    await jsonPost(`/api/sitrep/refresh?scope=${encodeURIComponent(scope)}`);
+    toast('SITREP updated'); route();
+  } catch (e) { toast(e.message); btn.disabled = false; btn.textContent = t; }
+}
+
+// Swap an intel section into an editable textarea.
+function editIntel(company, sec) {
+  const wrap = document.querySelector(`.intel-sec[data-section="${CSS.escape(sec)}"]`);
+  if (!wrap) return;
+  const body = wrap.querySelector('.intel-sec-body');
+  const current = body.querySelector('.md')?.textContent || '';
+  wrap.classList.add('open');
+  body.innerHTML = `<textarea class="intel-edit">${esc(current)}</textarea>
+    <div style="margin-top:8px;display:flex;gap:8px"><button class="sm primary" data-save-intel="${esc(sec)}">Save</button>
+    <button class="sm ghost" data-cancel-intel="1">Cancel</button></div>`;
+  body.querySelector('textarea').focus();
+}
+
+async function saveIntel(company, sec) {
+  const wrap = document.querySelector(`.intel-sec[data-section="${CSS.escape(sec)}"]`);
+  const body = wrap.querySelector('textarea').value;
+  try {
+    await api(`/api/intel/${encodeURIComponent(company)}/${encodeURIComponent(sec)}`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ body }),
+    });
+    toast('Intel saved'); route();
+  } catch (e) { toast(e.message); }
+}
+
+// --- event delegation ---
+document.addEventListener('click', (e) => {
+  const card = e.target.closest('.ccard');
+  const nav = e.target.closest('[data-nav]');
+  const refresh = e.target.closest('[data-refresh]');
+  const sitrep = e.target.closest('[data-sitrep]');
+  const editIn = e.target.closest('[data-edit-intel]');
+  const saveIn = e.target.closest('[data-save-intel]');
+  const cancelIn = e.target.closest('[data-cancel-intel]');
+  const addIn = e.target.closest('[data-add-intel]');
+  const secHead = e.target.closest('.intel-sec-head');
+  const item = e.target.closest('.fitem');
+
+  if ($('refresh-all') && e.target === $('refresh-all')) return doRefresh($('refresh-all'), null);
+  if (refresh) return doRefresh(refresh, refresh.dataset.refresh);
+  if (sitrep) return doSitrep(sitrep.dataset.sitrep, sitrep);
+  if (nav) { location.hash = nav.dataset.nav; return; }
+  if (editIn) { const co = companyLabelFromView(); return editIntel(co, editIn.dataset.editIntel); }
+  if (saveIn) { const co = companyLabelFromView(); return saveIntel(co, saveIn.dataset.saveIntel); }
+  if (cancelIn) return route();
+  if (addIn) {
+    const name = prompt('Section name (e.g. mission, values, policy, interview_guide, notes):');
+    if (name) editIntelNew(companyLabelFromView(), name.trim().toLowerCase().replace(/\s+/g, '_'));
+    return;
+  }
+  if (secHead && !e.target.closest('button') && !e.target.closest('a')) { secHead.closest('.intel-sec').classList.toggle('open'); return; }
+  if (item && item.classList.contains('unread')) {
+    jsonPost(`/api/feed/${item.dataset.item}/read`, { read: true }).then(() => item.classList.remove('unread')).catch(() => {});
+  }
+  if (card && !e.target.closest('a')) { location.hash = `#/company/${card.dataset.key}`; }
+});
+
+// The company label of the current #/company/<key> view (intel edits are keyed by label).
+let CURRENT = { label: null };
+const companyLabelFromView = () => CURRENT.label;
+
+function editIntelNew(company, sec) {
+  // Ensure a placeholder section exists, then open it for editing.
+  const aside = document.querySelector('.intel');
+  if (aside && !document.querySelector(`.intel-sec[data-section="${CSS.escape(sec)}"]`)) {
+    const div = document.createElement('div');
+    div.className = 'intel-sec open'; div.dataset.section = sec;
+    div.innerHTML = `<div class="intel-sec-head"><span class="intel-sec-name">${esc(sec.replace(/_/g, ' '))}</span><span class="spacer"></span><button class="sm ghost" data-edit-intel="${esc(sec)}">Edit</button></div><div class="intel-sec-body"><div class="md"></div></div>`;
+    aside.insertBefore(div, aside.querySelector('[data-add-intel]'));
+  }
+  editIntel(company, sec);
+}
+
+// ======================= routing =======================
+async function route() {
+  const m = location.hash.match(/^#\/company\/(.+)$/);
+  if (m) { await renderCompany(decodeURIComponent(m[1])); }
+  else { CURRENT.label = null; await renderDashboard(); }
+}
+
+window.addEventListener('hashchange', route);
+route();

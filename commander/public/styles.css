@@ -1,0 +1,127 @@
+:root {
+  --bg: #0f1115;
+  --panel: #181b22;
+  --panel-2: #1f2430;
+  --border: #2a2f3a;
+  --text: #e6e8ec;
+  --muted: #9aa3b2;
+  --accent: #4f8cff;
+  --good: #2ecc71;
+  --bad: #e74c3c;
+  --warn: #f1c40f;
+}
+[data-theme="light"] {
+  --bg: #f4f5f7;
+  --panel: #ffffff;
+  --panel-2: #eef0f3;
+  --border: #d3d8e0;
+  --text: #1a1d23;
+  --muted: #5a6472;
+  --accent: #2f6fe0;
+  --good: #1f9d57;
+  --bad: #d23f31;
+  --warn: #b8860b;
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); font-size: 14px; }
+
+/* --- header chrome (shared with the other apps) --- */
+header { display: flex; align-items: center; gap: 16px; padding: 12px 20px; background: var(--panel); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 20; }
+.header-right { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+a.linkbtn { text-decoration: none; display: inline-flex; align-items: center; gap: 6px; color: var(--accent); padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; }
+a.linkbtn:hover { border-color: var(--accent); }
+.ico { width: 20px; height: 20px; vertical-align: middle; }
+.brand { display: flex; align-items: center; gap: 8px; font-size: 16px; font-weight: 700; white-space: nowrap; }
+.page-title { position: absolute; left: 50%; transform: translateX(-50%); text-align: center; pointer-events: none; }
+.page-title .pt-name { font-size: 18px; font-weight: 800; letter-spacing: .08em; }
+.page-title .pt-desc { font-size: 12px; color: var(--muted); margin-top: 1px; }
+
+button { font: inherit; color: var(--text); background: var(--panel-2); border: 1px solid var(--border); border-radius: 6px; padding: 7px 12px; cursor: pointer; }
+button:hover { border-color: var(--accent); }
+button:disabled { opacity: .55; cursor: default; }
+button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+button.sm { padding: 4px 8px; font-size: 12px; }
+button.ghost { background: none; border-color: transparent; color: var(--muted); }
+button.ghost:hover { color: var(--text); border-color: var(--border); }
+
+main { padding: 20px; max-width: 1600px; margin: 0 auto; }
+.toolbar { display: flex; gap: 12px; align-items: center; margin-bottom: 16px; flex-wrap: wrap; }
+.spacer { flex: 1; }
+.muted { color: var(--muted); }
+.sm { font-size: 12px; }
+.hidden { display: none !important; }
+.empty { color: var(--muted); padding: 40px; text-align: center; }
+.toast { position: fixed; bottom: 20px; right: 20px; background: var(--panel-2); border: 1px solid var(--accent); padding: 12px 16px; border-radius: 8px; z-index: 60; }
+.link { color: var(--accent); text-decoration: none; }
+.link:hover { text-decoration: underline; }
+
+/* --- SITREP banner --- */
+.sitrep { background: var(--panel); border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: 10px; padding: 14px 16px; margin-bottom: 18px; }
+.sitrep .sitrep-head { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+.sitrep .sitrep-title { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); font-weight: 700; }
+.sitrep .sitrep-body { line-height: 1.5; }
+.sitrep .sitrep-when { color: var(--muted); font-size: 12px; margin-left: auto; }
+.sitrep.pending .sitrep-body { color: var(--muted); font-style: italic; }
+
+/* --- dashboard: company cards --- */
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 16px; }
+.ccard { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 0; overflow: hidden; display: flex; flex-direction: column; cursor: pointer; transition: border-color .1s; }
+.ccard:hover { border-color: var(--accent); }
+.ccard-head { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--border); }
+.ccard-name { font-size: 16px; font-weight: 800; letter-spacing: .02em; }
+.ccard-meta { margin-left: auto; display: inline-flex; align-items: center; gap: 8px; }
+.badge { font-size: 11px; font-weight: 700; border-radius: 999px; padding: 2px 9px; border: 1px solid var(--border); color: var(--muted); text-transform: uppercase; letter-spacing: .03em; }
+.badge.public { color: var(--good); border-color: color-mix(in srgb, var(--good) 45%, transparent); }
+.badge.private { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 45%, transparent); }
+.badge.unread { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 50%, transparent); }
+.ccard-feeds { padding: 6px 16px 12px; display: flex; flex-direction: column; }
+.feedline { display: flex; gap: 8px; padding: 7px 0; border-bottom: 1px solid var(--border); align-items: baseline; }
+.feedline:last-child { border-bottom: none; }
+.feedline .fk { flex: 0 0 74px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+.feedline .fh { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.feedline .fh .fh-title { color: var(--text); }
+.ccard-sitrep { padding: 10px 16px; border-top: 1px solid var(--border); background: var(--panel-2); font-size: 13px; line-height: 1.45; color: var(--muted); }
+
+/* feed-kind accent dots */
+.fk.news { color: var(--accent); } .fk.blog { color: var(--good); } .fk.event { color: var(--warn); } .fk.financial { color: #a974ff; }
+
+/* --- company view --- */
+.co-head { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
+.co-title { font-size: 22px; font-weight: 800; }
+.co-actions { margin-left: auto; display: inline-flex; gap: 8px; align-items: center; }
+.co-layout { display: grid; grid-template-columns: 1fr 360px; gap: 18px; align-items: start; }
+@media (max-width: 1000px) { .co-layout { grid-template-columns: 1fr; } }
+
+/* separated feed columns (NOT a merged super-feed) */
+.feeds-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+.feedcol { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; display: flex; flex-direction: column; }
+.feedcol-head { padding: 10px 14px; border-bottom: 1px solid var(--border); }
+.feedcol-title { font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; }
+.feedcol-digest { margin-top: 6px; font-size: 13px; line-height: 1.45; color: var(--text); background: var(--panel-2); border-radius: 8px; padding: 8px 10px; border: 1px solid var(--border); }
+.feedcol-digest .dg-label { color: var(--accent); font-weight: 700; }
+.feedcol-digest.pending { color: var(--muted); font-style: italic; }
+.feedcol-list { padding: 6px 0; max-height: 520px; overflow-y: auto; }
+.fitem { padding: 9px 14px; border-bottom: 1px solid var(--border); display: flex; flex-direction: column; gap: 3px; }
+.fitem:last-child { border-bottom: none; }
+.fitem.unread { box-shadow: inset 3px 0 0 var(--warn); }
+.fitem .fi-date { font-size: 11px; color: var(--muted); }
+.fitem .fi-title { font-weight: 600; line-height: 1.35; }
+.fitem .fi-title a { color: var(--text); text-decoration: none; }
+.fitem .fi-title a:hover { color: var(--accent); }
+.fitem .fi-sum { font-size: 12px; color: var(--muted); line-height: 1.4; }
+.fitem .fi-loc { font-size: 12px; color: var(--warn); }
+
+/* intel panel */
+.intel { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 14px; position: sticky; top: 78px; }
+.intel h3 { margin: 0 0 10px; font-size: 13px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+.intel-sec { border: 1px solid var(--border); border-radius: 8px; margin-bottom: 10px; overflow: hidden; }
+.intel-sec-head { display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: var(--panel-2); cursor: pointer; }
+.intel-sec-name { font-weight: 700; font-size: 13px; text-transform: capitalize; }
+.intel-sec-head .spacer { flex: 1; }
+.intel-sec-body { padding: 10px; display: none; }
+.intel-sec.open .intel-sec-body { display: block; }
+.intel-sec-body .md { line-height: 1.5; white-space: pre-wrap; font-size: 13px; }
+.intel-sec-body textarea { width: 100%; min-height: 140px; background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 8px; font: inherit; resize: vertical; }
+.intel-empty { color: var(--muted); font-size: 12px; font-style: italic; }
+.intel-src { font-size: 11px; }

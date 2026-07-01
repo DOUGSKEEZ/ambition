@@ -1,0 +1,12 @@
+[Unit]
+Description=Commander company-intelligence pipeline (fetch feeds, regenerate digests + SITREPs)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/home/samwise/ambition/commander
+# Node is installed via nvm — point ExecStart at the absolute node path (`which node`).
+# If you upgrade Node with nvm, update this line to the new version path.
+ExecStart=/home/samwise/.nvm/versions/node/v22.21.1/bin/node src/pipeline.js
+EnvironmentFile=/home/samwise/ambition/commander/.env

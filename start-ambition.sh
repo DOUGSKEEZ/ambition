@@ -1,5 +1,5 @@
 #!/bin/bash
-# Start the ambition dev servers (sniper :7700 + meddic :7701 + engineer :7702 + specops :7703 + uav :7704) in a tmux session.
+# Start the ambition dev servers (sniper :7700 + meddic :7701 + engineer :7702 + specops :7703 + uav :7704 + commander :7705) in a tmux session.
 # One session, one window per app. Re-runnable: no-ops if the session already exists.
 SESSION="ambition-dev"
 ROOT="/home/samwise/ambition"
@@ -29,11 +29,16 @@ tmux send-keys -t "$SESSION:specops" "npm run dev" Enter
 tmux new-window -t "$SESSION" -n uav -c "$ROOT/uav"
 tmux send-keys -t "$SESSION:uav" "npm run dev" Enter
 
+# Window 6: commander (company intelligence)
+tmux new-window -t "$SESSION" -n commander -c "$ROOT/commander"
+tmux send-keys -t "$SESSION:commander" "npm run dev" Enter
+
 echo "Session '$SESSION' created:"
-echo "  sniper   -> http://0.0.0.0:7700"
-echo "  meddic   -> http://0.0.0.0:7701"
-echo "  engineer -> http://0.0.0.0:7702"
-echo "  specops  -> http://0.0.0.0:7703"
-echo "  uav      -> http://0.0.0.0:7704"
+echo "  sniper    -> http://0.0.0.0:7700"
+echo "  meddic    -> http://0.0.0.0:7701"
+echo "  engineer  -> http://0.0.0.0:7702"
+echo "  specops   -> http://0.0.0.0:7703"
+echo "  uav       -> http://0.0.0.0:7704"
+echo "  commander -> http://0.0.0.0:7705"
 echo "Attach with: tmux attach -t $SESSION   (switch windows: Ctrl-b n)"
 echo "Stop with:   ./kill-ambition.sh"

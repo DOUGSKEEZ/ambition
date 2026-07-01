@@ -11,7 +11,7 @@ The metaphor is a game squad. Six independently hosted roles:
 | 🎯 **Sniper** | [`sniper/`](sniper/) | Acquire targets — capture a LinkedIn profile into a reviewed contact record with AI summary | **Shipped** · :7700 |
 | 🩹 **Medic** | [`meddic/`](meddic/) | Keep the campaign alive — run customized outreach sequences and track every touch | **Shipped** · :7701 |
 | 🔧 **Engineer** | [`engineer/`](engineer/) | Metrics for optimization — charts of my outbound flow (by type & company) to tune the campaign | **Shipped** · :7702 |
-| ⭐ **Commander** | [`commander/`](commander/) | Strategic Company Overview — aggregate target company news, events, and other informationinto one strategic view | **Planned** |
+| ⭐ **Commander** | [`commander/`](commander/) | Company intelligence — per-company news / blog / events / financials feeds with AI digests, curated intel, and a cross-app SITREP | **Shipped** · :7705 |
 | 🎖 **SpecOps** | [`specops/`](specops/) | Convert & prep — a Kanban board of live opportunities (comp, location, target HMs, stage) once an HM engages | **Shipped** · :7703 |
 | 🛰 **UAV** | [`uav/`](uav/) | Radar — daily scan of target companies' job boards for new/closed roles, with application aging (re-apply every 7–14 days) | **Shipped** · :7704 |
 
@@ -54,9 +54,14 @@ Shipped 2026-05-31. Lives in [`meddic/`](meddic/) (the directory keeps the origi
 
 Charts and metrics over what the squad does, so I can tune the campaign on data instead of vibes. **Shipped — two views:** *Outbound* (touches over time, stacked by contact type or company, day/week toggle, company filter) and *Funnel* (the contact lifecycle Captured → Active → In&nbsp;campaign → Touched → Responded, stacked by type/company, with per-stage conversions — the empty next rung is the SpecOps/Opportunity stage). (Read-only over the shared DB; charts render with a locally-vendored Chart.js, nothing leaves the box.) What's next — engagement/outcome tracking, a daily momentum read — lives in [`engineer/engineer-plan.md`](engineer/engineer-plan.md).
 
-## ⭐ Commander — the strategic view
+## ⭐ Commander — company intelligence
 
-This is the page that rolls up the **target companies** selected — the company-level view above the individual contacts. Where Sniper and Medic operate one person at a time, the Commander answers "which companies am I working, how deep am I into each, and where should I push next?" Its home is [`commander/`](commander/); see the stub there for the current sketch.
+External intelligence on the **target companies themselves** (the role SpecOps/UAV/Engineer left open — they cover *my* pipeline; Commander covers *them*). **Shipped — two views:**
+
+- **Dashboard** — a card per company with the latest headline from each feed, an unread count, and a whole-campaign **SITREP**.
+- **Company view** — **separated feeds** (News · Blog · Events · Financials — never one noisy stream), each led by a 1–2 sentence **"Today's summary"** written by the local qwen3 model; an editable **Intel** panel (mission / values / hiring policy / interview guide / financial brief / notes — paste gated docs, seed open ones from source); and a per-company **SITREP**.
+
+The **SITREP** is the internal tie-in: an AI briefing that synthesizes the *other apps'* data (SpecOps opportunities, UAV open roles, Medic outreach state) into "where you stand + the next best move" — read-only, no re-charting. Config-driven and adapter-per-company (`rss` + a generic selector-driven `html` parser), so adding a company is a config append. Owns the `feed_items` / `feed_digests` / `company_intel` / `sitreps` tables; runs a daily systemd pipeline (fetch → digests → SITREPs, UI-only, no email). Defaults to the local qwen3 model; Claude is opt-in. See [`commander/commander-plan.md`](commander/commander-plan.md).
 
 ## 🎖 SpecOps — convert & prep
 
@@ -87,7 +92,7 @@ department·office·team·location). Adding a company is a config append, not a 
 The shipped apps are Node 22 ESM + Express serving a vanilla-JS SPA, backed by a shared Postgres database (named `sniper`). Bring up all dev servers in one tmux session:
 
 ```bash
-./start-ambition.sh      # sniper :7700 + meddic :7701 + engineer :7702 + specops :7703 + uav :7704, one window each
+./start-ambition.sh      # sniper :7700 + meddic :7701 + engineer :7702 + specops :7703 + uav :7704 + commander :7705, one window each
 ./kill-ambition.sh       # stop all
 ```
 
@@ -96,8 +101,9 @@ The shipped apps are Node 22 ESM + Express serving a vanilla-JS SPA, backed by a
 - Engineer analytics → <http://localhost:7702/>
 - SpecOps board → <http://localhost:7703/>
 - UAV radar → <http://localhost:7704/>
+- Commander intelligence → <http://localhost:7705/>
 
-First-time setup for each app is `npm install` + `.env` (and `npm run migrate` for the apps that own tables — Sniper, Medic, SpecOps, UAV). All share Sniper's `sniper` database; Medic and SpecOps also serve Sniper's contact photos, so set Sniper up first.
+First-time setup for each app is `npm install` + `.env` (and `npm run migrate` for the apps that own tables — Sniper, Medic, SpecOps, UAV, Commander). All share Sniper's `sniper` database; Medic and SpecOps also serve Sniper's contact photos, so set Sniper up first.
 
 ## Shared infrastructure
 
@@ -111,7 +117,7 @@ ambition/
 ├── sniper/        🎯 LinkedIn capture → enrichment → review  (shipped)
 ├── meddic/        🩹 campaign engine & outreach tracker      (shipped)
 ├── engineer/      🔧 analytics dashboard (outbound charts)    (shipped :7702)
-├── commander/     ⭐ company rollup view                      (planned)
+├── commander/     ⭐ company intelligence (feeds + SITREP)     (shipped :7705)
 ├── specops/       🎖 opportunity Kanban board                 (shipped :7703)
 ├── uav/           🛰 job-board radar + application aging       (shipped :7704)
 ├── start-ambition.sh / kill-ambition.sh
