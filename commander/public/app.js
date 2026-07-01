@@ -53,9 +53,14 @@ function actionsHTML(actions, max = 3) {
 
 // --- SITREP block (shared by dashboard + company view) ---
 function sitrepHTML(sitrep, { scope, label }) {
-  const body = sitrep?.narrative
-    ? `<div class="sitrep-body">${esc(sitrep.narrative)}</div>`
-    : `<div class="sitrep-body">No SITREP yet — click <strong>Brief me</strong> to generate one.</div>`;
+  // The model emits one action per line; render each as a bullet. Older single-paragraph rows are
+  // split on sentence boundaries so they bullet too.
+  let body = `<div class="sitrep-body">No SITREP yet — click <strong>Brief me</strong> to generate one.</div>`;
+  if (sitrep?.narrative) {
+    let lines = sitrep.narrative.split('\n').map((l) => l.replace(/^[-•*\d.)\s]+/, '').trim()).filter(Boolean);
+    if (lines.length === 1) lines = lines[0].split(/(?<=[.!?])\s+(?=[A-Z🎯])/).filter(Boolean);
+    body = `<ul class="sitrep-list">${lines.map((l) => `<li>${esc(l)}</li>`).join('')}</ul>`;
+  }
   return `<div class="sitrep ${sitrep?.narrative ? '' : 'pending'}">
     <div class="sitrep-head">
       <span class="sitrep-title">⭐ SITREP · ${esc(label)}</span>
