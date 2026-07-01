@@ -111,12 +111,26 @@ export async function summarizeFeed({ company, kind, items, seed }) {
   return r ? { summary: r.text.replace(/^["']|["']$/g, '').trim(), provider: r.provider } : null;
 }
 
-// The SITREP narrative: synthesize the read-only cross-app facts into 2–4 sentences of "where things
-// stand + where to push next". Not a re-chart — a briefing. `facts` is the object from rollup.js.
+// The SITREP narrative: turn the DETERMINISTIC action flags from rollup.js into a prioritized
+// order — never a recap. Doug can already see every count on the dashboard; the SITREP's only job
+// is "do THIS next". The flags arrive pre-ranked (critical → low); the model picks the top few,
+// phrases them as orders, and names the companies that need love. Facts are computed in SQL — the
+// model must not invent or re-derive numbers.
 export async function writeSitrep({ scope, facts }) {
-  const label = scope === 'all' ? 'the whole campaign across all target companies' : scope;
-  const system = `You are the "Commander" — a strategic briefer for Doug's job search at AI companies. Given the current internal state (contacts, outreach, opportunities, open roles), write a crisp SITREP for ${label}: 2–4 sentences, plain prose, no markdown, no headings. Say where things stand and the single highest-leverage next action. Be concrete and specific to the numbers; never invent facts not in the data.`;
-  const user = `Current state (JSON):\n${JSON.stringify(facts, null, 2)}`;
+  const isAll = scope === 'all';
+  const system = `You are the "Commander" — Doug's briefing officer for his job-search campaign at AI companies. You receive a pre-ranked list of ACTION FLAGS (severity: critical > high > medium > low), computed from live data.
+
+Write a SITREP of 2-4 short sentences, plain prose, no markdown, no headings, no preamble.
+
+RULES — this is an ORDERS briefing, not a status report:
+- NEVER recap totals or counts Doug can already see ("you have N contacts / N opportunities" is a FAILURE).
+- Every sentence must be an imperative action or a direct callout.
+- ALWAYS lead with any "critical" flag (a live Screen & Interview) — name the role(s) and tell him to drive them.
+- Then the 1-3 highest-severity remaining actions${isAll ? ', naming the company each belongs to. If one company is clearly being neglected (multiple flags), call that out by name' : ''}.
+- Use ONLY the flags given. If there are no flags at all, say the pipeline is clean and to go hunting for new targets.`;
+  const user = isAll
+    ? `Ranked action flags across all companies:\n${JSON.stringify(facts.actions, null, 2)}`
+    : `Ranked action flags for ${scope}:\n${JSON.stringify(facts.actions, null, 2)}`;
   const r = await tryComplete({ system, user, maxTokens: 320 });
   return r ? { narrative: r.text.trim(), provider: r.provider } : null;
 }

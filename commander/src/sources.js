@@ -3,7 +3,11 @@
 //
 //   key        unique slug (also the source_key stored on feed rows)
 //   label      display name — MUST match the sniper `companies.name` so the SITREP rollup and
-//              cross-app links can join by name (like UAV's job_postings.company)
+//              cross-app links can join by name (like UAV's job_postings.company). GOTCHA: the CRM
+//              row for Google is named "Gemini" (and UAV postings use it too) — label accordingly.
+//   appLimit   optional {max, windowDays}: the company caps applications in a rolling window
+//              (replicated from uav/src/sources.js) so the "apply to open roles" action is
+//              quota-aware and goes quiet when the window is full
 //   profile    'public' | 'private' — gates the `financial` feed (only public companies have one)
 //   homeUrl    the company's site (linked in the UI)
 //   xListUrl   optional: a curated X/Twitter List to link OUT to (no in-app scraping in v1)
@@ -40,6 +44,7 @@ export const SOURCES = [
     label: 'OpenAI',
     profile: 'private',
     homeUrl: 'https://openai.com',
+    appLimit: { max: 5, windowDays: 180 },
     feeds: {
       news: { adapter: 'rss', url: 'https://openai.com/news/rss.xml' },
     },
@@ -79,9 +84,10 @@ export const SOURCES = [
   },
   {
     key: 'google',
-    label: 'Google',
+    label: 'Gemini', // the CRM company row (and UAV's posting label) is "Gemini", not "Google"
     profile: 'public',
     homeUrl: 'https://ai.google',
+    appLimit: { max: 3, windowDays: 30 },
     feeds: {
       blog: { adapter: 'rss', url: 'https://blog.google/technology/ai/rss/' },
       news: { adapter: 'rss', url: 'https://news.google.com/rss/search?q=%22Google%22%20AI%20when%3A14d&hl=en-US&gl=US&ceid=US:en' },

@@ -1,5 +1,6 @@
 import 'dotenv/config';
-import { join, resolve } from 'node:path';
+import { existsSync } from 'node:fs';
+import { isAbsolute, join, resolve } from 'node:path';
 import express from 'express';
 import cors from 'cors';
 import commanderRouter from './routes/commander.js';
@@ -13,6 +14,13 @@ app.use(express.json({ limit: '1mb' }));
 
 // API
 app.use('/api', commanderRouter);
+
+// Serve Sniper's media (same host) so company logos (media/company-icons/<id>.png) render on cards.
+const sniperMedia = (() => {
+  const p = process.env.SNIPER_MEDIA_DIR || '../sniper/media';
+  return isAbsolute(p) ? p : join(ROOT, p);
+})();
+if (existsSync(sniperMedia)) app.use('/media', express.static(sniperMedia));
 
 app.use(express.static(join(ROOT, 'public')));
 app.get('/health', (_req, res) => res.json({ status: 'ok' }));

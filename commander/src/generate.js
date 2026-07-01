@@ -67,8 +67,10 @@ export async function regenerateDigests(sources = SOURCES) {
 
 // Regenerate one SITREP. scope='all' → whole-campaign; else a company name.
 export async function regenerateSitrep(scope) {
-  const names = SOURCES.map((s) => s.label);
-  const facts = scope === 'all' ? await getAllFacts(names) : await getCompanyFacts(scope);
+  const source = SOURCES.find((s) => s.label === scope);
+  const facts = scope === 'all'
+    ? await getAllFacts(SOURCES)
+    : await getCompanyFacts(scope, { appLimit: source?.appLimit });
   const res = await writeSitrep({ scope, facts });
   if (!res) return null;
   await query(

@@ -39,6 +39,18 @@ const fmtDate = (d) => (d ? new Date(d).toLocaleDateString(undefined, { year: 'n
 const fmtWhen = (d) => (d ? `updated ${new Date(d).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}` : '');
 const app = () => $('app');
 
+// Company logo captured by Sniper (media/company-icons/<id>.png, served via the shared /media mount).
+const companyLogo = (id, cls = 'co-logo') =>
+  (id ? `<img class="${cls}" src="/media/company-icons/${id}.png" alt="" onerror="this.style.display='none'">` : '');
+
+// Deterministic action flags (from rollup.js) rendered as chips — the card shows what to DO, not a recap.
+function actionsHTML(actions, max = 3) {
+  if (!actions?.length) return `<div class="act-clear">✓ Nothing urgent</div>`;
+  return actions.slice(0, max).map((a) =>
+    `<div class="act act-${esc(a.severity)}" title="${esc(a.severity)}">${esc(a.text)}</div>`
+  ).join('') + (actions.length > max ? `<div class="act-more">+${actions.length - max} more</div>` : '');
+}
+
 // --- SITREP block (shared by dashboard + company view) ---
 function sitrepHTML(sitrep, { scope, label }) {
   const body = sitrep?.narrative
@@ -60,19 +72,21 @@ async function renderDashboard() {
 
   const cards = data.companies.map((c) => {
     const feeds = KIND_ORDER.filter((k) => c.kinds.includes(k)).map((k) => {
-      const h = c.headlines[k];
-      const head = h ? `<span class="fh-title">${esc(h.title)}</span>` : `<span class="muted">—</span>`;
-      return `<div class="feedline"><span class="fk ${k}">${esc(KIND_LABEL[k])}</span><span class="fh">${head}</span></div>`;
+      const items = c.headlines[k] || [];
+      const rows = items.length
+        ? items.map((h) => `<div class="fh"><span class="fh-date">${esc(fmtDate(h.published_at || h.first_seen_at))}</span><span class="fh-title">${esc(h.title)}</span></div>`).join('')
+        : `<div class="fh"><span class="muted">—</span></div>`;
+      return `<div class="feedline"><span class="fk ${k}">${esc(KIND_LABEL[k])}</span><div class="fh-list">${rows}</div></div>`;
     }).join('');
     const unread = c.counts.unread ? `<span class="badge unread">${c.counts.unread} new</span>` : '';
-    const sr = c.sitrep?.narrative ? `<div class="ccard-sitrep">${esc(c.sitrep.narrative)}</div>` : '';
     return `<div class="ccard" data-key="${esc(c.key)}">
       <div class="ccard-head">
+        ${companyLogo(c.company_id)}
         <span class="ccard-name">${esc(c.label)}</span>
         <span class="ccard-meta"><span class="badge ${c.profile}">${esc(c.profile)}</span>${unread}</span>
       </div>
+      <div class="ccard-actions">${actionsHTML(c.actions)}</div>
       <div class="ccard-feeds">${feeds || '<div class="muted sm">No feeds configured</div>'}</div>
-      ${sr}
     </div>`;
   }).join('');
 
@@ -109,6 +123,7 @@ async function renderCompany(key) {
   app().innerHTML = `
     <div class="toolbar"><button class="sm" data-nav="#/">← All companies</button></div>
     <div class="co-head">
+      ${companyLogo(data.company_id, 'co-logo lg')}
       <span class="co-title">${esc(s.label)}</span>
       <span class="badge ${s.profile}">${esc(s.profile)}</span>
       <div class="co-actions">
@@ -118,6 +133,7 @@ async function renderCompany(key) {
       </div>
     </div>
     ${sitrepHTML(data.sitrep, { scope: s.label, label: s.label })}
+    <div class="co-actions-row">${actionsHTML(data.actions, 6)}</div>
     <div class="co-layout">
       <div><div class="feeds-grid">${feedCols || '<div class="empty">No feeds configured.</div>'}</div></div>
       <aside class="intel">${intelHTML(s.label, data.intel, data.intelDocs)}</aside>

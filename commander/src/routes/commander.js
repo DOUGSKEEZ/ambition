@@ -24,10 +24,16 @@ async function latestDigests() {
   );
   return r.rows;
 }
-async function latestHeadlines() {
+async function latestHeadlines(perFeed = 2) {
   const r = await query(
-    `SELECT DISTINCT ON (company, kind) company, kind, title, url, published_at, first_seen_at
-       FROM feed_items ORDER BY company, kind, COALESCE(published_at, first_seen_at) DESC`
+    `SELECT company, kind, title, url, published_at, first_seen_at FROM (
+       SELECT company, kind, title, url, published_at, first_seen_at,
+              ROW_NUMBER() OVER (PARTITION BY company, kind
+                                 ORDER BY COALESCE(published_at, first_seen_at) DESC) AS rn
+       FROM feed_items
+     ) t WHERE rn <= $1
+     ORDER BY company, kind, COALESCE(published_at, first_seen_at) DESC`,
+    [perFeed]
   );
   return r.rows;
 }
@@ -40,27 +46,30 @@ async function latestSitrep(scope) {
   return r.rows[0] || null;
 }
 
-// GET /api/companies — dashboard: config + latest digest/headline per feed + counts + campaign SITREP.
+// GET /api/companies — dashboard: config + latest digest + top headlines per feed + counts +
+// the deterministic action flags (rendered as chips — no LLM in the hot path) + campaign SITREP.
 router.get('/companies', async (_req, res) => {
   try {
     const [digests, headlines, counts, sitrep] = await Promise.all([
       latestDigests(),
-      latestHeadlines(),
+      latestHeadlines(2),
       query(`SELECT company, COUNT(*)::int total, COUNT(*) FILTER (WHERE NOT is_read)::int unread FROM feed_items GROUP BY company`),
       latestSitrep('all'),
     ]);
     const byCompany = (rows) => rows.reduce((m, r) => ((m[r.company] ||= {})[r.kind] = r, m), {});
+    const groupHeadlines = (rows) => rows.reduce((m, r) => (((m[r.company] ||= {})[r.kind] ||= []).push(r), m), {});
     const dg = byCompany(digests);
-    const hl = byCompany(headlines);
+    const hl = groupHeadlines(headlines);
     const cnt = counts.rows.reduce((m, r) => ((m[r.company] = r), m), {});
-    const sitreps = await Promise.all(SOURCES.map((s) => latestSitrep(s.label)));
+    const facts = await Promise.all(SOURCES.map((s) => getCompanyFacts(s.label, { appLimit: s.appLimit })));
 
     const companies = SOURCES.map((s, i) => ({
       ...publicSource(s),
+      company_id: facts[i].company_id,
       digests: dg[s.label] || {},
       headlines: hl[s.label] || {},
       counts: cnt[s.label] || { total: 0, unread: 0 },
-      sitrep: sitreps[i],
+      actions: facts[i].actions,
     }));
     res.json({ companies, sitrep });
   } catch (err) {
@@ -93,8 +102,11 @@ router.get('/company/:key', async (req, res) => {
       `SELECT section, title, body, source_url, updated_at FROM company_intel WHERE company = $1 ORDER BY section`,
       [source.label]
     );
+    const facts = await getCompanyFacts(source.label, { appLimit: source.appLimit });
     res.json({
       source: publicSource(source),
+      company_id: facts.company_id,
+      actions: facts.actions,
       intelDocs: source.intelDocs || [],
       feeds,
       intel: intel.rows,
@@ -161,8 +173,12 @@ router.post('/sitrep/refresh', async (req, res) => {
 // GET /api/sitrep?scope= — latest narrative for a scope, plus the facts behind it.
 router.get('/sitrep', async (req, res) => {
   const scope = req.query.scope || 'all';
+  const source = SOURCES.find((s) => s.label === scope);
   try {
-    res.json({ sitrep: await latestSitrep(scope), facts: scope === 'all' ? null : await getCompanyFacts(scope) });
+    res.json({
+      sitrep: await latestSitrep(scope),
+      facts: source ? await getCompanyFacts(source.label, { appLimit: source.appLimit }) : null,
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
