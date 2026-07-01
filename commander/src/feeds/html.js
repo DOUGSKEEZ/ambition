@@ -12,6 +12,7 @@
 //   date?,               // selector within item for a date string (parsed best-effort; may be absent)
 //   summary?,            // selector within item for an excerpt
 //   location?,           // selector within item for an event location (kind='event')
+//   eventDates?,         // true → the parsed date is the event's START (future), not a publish date
 // }
 //
 // A site that is fully client-rendered (some event pages) yields no server HTML → the item selector
@@ -61,10 +62,12 @@ export async function fetchFeed(source, feed) {
   const items = [];
   $(feed.item).each((_, el) => {
     const node = $(el);
-    // Title: an explicit selector wins; otherwise prefer the first heading inside the item (card
-    // components put the title in an h2/h3) and fall back to the item's own text. Preferring a heading
-    // avoids mashing the date/category/excerpt into the title when the whole card is one <a>.
-    const titleEl = feed.title ? node.find(feed.title).first() : node.find('h1,h2,h3,h4,h5').first();
+    // Title: an explicit selector wins; if it's absent OR misses (e.g. a "featured" hero card with
+    // different classes than the list cards), prefer the first heading inside the item; only then
+    // fall back to the item's own text. Preferring a heading avoids mashing the date/category/excerpt
+    // into the title when the whole card is one <a>.
+    let titleEl = feed.title ? node.find(feed.title).first() : node.find('h1,h2,h3,h4,h5').first();
+    if (!titleEl.length) titleEl = node.find('h1,h2,h3,h4,h5').first();
     const title = clean(titleEl.length ? titleEl.text() : node.text());
     let href = feed.link
       ? node.find(feed.link).first().attr('href')
@@ -82,7 +85,7 @@ export async function fetchFeed(source, feed) {
       url: href,
       summary: feed.summary ? clean(node.find(feed.summary).first().text()).slice(0, 600) || null : null,
       publishedAt: feed.date ? parseDate(node.find(feed.date).first().text()) : null,
-      eventStart: feed.date && source.eventDatesAsStart ? parseDate(node.find(feed.date).first().text()) : null,
+      eventStart: feed.date && feed.eventDates ? parseDate(node.find(feed.date).first().text()) : null,
       eventLocation: feed.location ? clean(node.find(feed.location).first().text()) || null : null,
       raw: {},
     });

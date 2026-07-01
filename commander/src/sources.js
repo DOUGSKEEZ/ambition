@@ -30,9 +30,24 @@ export const SOURCES = [
     profile: 'private',
     homeUrl: 'https://www.anthropic.com',
     feeds: {
-      news: { adapter: 'html', url: 'https://www.anthropic.com/news', item: 'a[href^="/news/"]' },
-      blog: { adapter: 'html', url: 'https://www.anthropic.com/engineering', item: 'a[href^="/engineering/"]' },
-      event: { adapter: 'html', url: 'https://www.anthropic.com/events', item: 'a[href^="/events/"]' },
+      // Anthropic card anatomy (hash-proof [class*=…] hooks): featured-grid + publication-list news
+      // cards both carry a __title element and a __date element; engineering cards use h3 + __date.
+      news: {
+        adapter: 'html', url: 'https://www.anthropic.com/news', item: 'a[href^="/news/"]',
+        title: '[class*="__title"]', date: '[class*="__date"]', summary: '[class*="__body"]',
+      },
+      blog: {
+        adapter: 'html', url: 'https://www.anthropic.com/engineering', item: 'a[href^="/engineering/"]',
+        title: 'h3', date: '[class*="__date"]', summary: '[class*="__description"]',
+      },
+      // Webflow events list: data lives in fs-list-field attributes on .event_list_item containers
+      // (the /events/ <a> itself is just an invisible "Learn more" overlay). No location field —
+      // `format` (In-person / Virtual) is the closest thing, shown as the location chip.
+      event: {
+        adapter: 'html', url: 'https://www.anthropic.com/events', item: '.event_list_item',
+        title: '[fs-list-field="title"]', link: 'a[href^="/events/"]',
+        date: '[fs-list-field="date"]', location: '[fs-list-field="format"]', eventDates: true,
+      },
     },
     intelDocs: [
       { section: 'policy', title: 'Candidate AI guidance', url: 'https://www.anthropic.com/candidate-ai-guidance', seedable: true },
