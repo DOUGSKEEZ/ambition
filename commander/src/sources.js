@@ -103,9 +103,28 @@ export const SOURCES = [
     label: 'Cursor',
     profile: 'private',
     homeUrl: 'https://www.cursor.com',
+    // Cursor is lean (Doug, 2026-07-02): blog + changelog on cursor.com, announcements + North
+    // America events on their Discourse forum — Discourse gives free RSS (append .rss to any
+    // category URL), so those two need no HTML parsing at all.
     feeds: {
-      blog: { adapter: 'html', url: 'https://www.cursor.com/blog', item: 'a[href^="/blog/"]' },
-      news: { adapter: 'html', url: 'https://www.cursor.com/changelog', item: 'a[href^="/changelog/"]' },
+      news: {
+        adapter: 'rss', url: 'https://forum.cursor.com/c/announcements/11.rss', label: 'Announcements',
+      },
+      event: {
+        adapter: 'rss', url: 'https://forum.cursor.com/c/events/north-america/27.rss', label: 'Events (NA)',
+      },
+      // blog cards (scoped to a[class*=card] — bare /blog/ links like "View all press →" are nav
+      // junk; matches both feature cards AND a.blog-directory__row list rows). In every variant the
+      // FIRST p[class*=text-theme-text] is the title; date in <time>, excerpt in the -sec p.
+      blog: {
+        adapter: 'html', url: 'https://www.cursor.com/blog', item: 'a[class*="card"][href^="/blog/"], a[class*="blog-directory__row"]',
+        title: 'p[class*="text-theme-text"]', date: 'time', summary: 'p[class*="text-theme-text-sec"]',
+      },
+      // changelog: each entry's h1 wraps a link with the real title; the sibling date link isn't
+      // reachable from it, so entries are undated (first-seen ordering — fine for a changelog)
+      general: {
+        adapter: 'html', url: 'https://www.cursor.com/changelog', item: 'h1 > a[href^="/changelog/"]', label: 'Changelog',
+      },
     },
     intelDocs: [
       { section: 'mission', title: 'About', url: 'https://www.cursor.com/about', seedable: false },
