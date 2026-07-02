@@ -188,9 +188,9 @@ function md(src) {
 let INTEL = new Map();
 let INTEL_DOCS = [];
 
-// Intel panel. The 'notes' section is PINNED: never collapsible, an editable Link + Note pair —
-// link-only renders as just the header row, note-only renders without the link chip.
-// Other sections stay collapsible with a seed-doc hint.
+// Intel panel. NO collapse/expand anywhere: a section with content (link and/or note) shows it; an
+// empty section is just its header row ("appears collapsed"). The link renders as a full-width
+// link row — icon + hostname + arrow, a real click target. 'notes' is always present, always first.
 function intelHTML(company, intel, docs) {
   const bySection = new Map(intel.map((r) => [r.section, r]));
   const order = ['notes']; // Doug's own notes — always present, always first
@@ -203,31 +203,20 @@ function intelHTML(company, intel, docs) {
     const doc = docFor(sec);
     const title = row?.title || doc?.title || sec.replace(/_/g, ' ');
     const src = row?.source_url || doc?.url;
-    const linkChip = src
-      ? `<a class="link intel-src" href="${esc(src)}" target="_blank" rel="noopener" title="${esc(src)}">${esc(linkHost(src))} ↗</a>`
-      : '';
 
-    if (sec === 'notes') {
-      const body = row?.body
-        ? `<div class="intel-sec-body"><div class="md">${md(row.body)}</div></div>`
-        : (src ? '' : `<div class="intel-sec-body"><div class="intel-empty">No notes yet — Edit to add a link and/or note.</div></div>`);
-      return `<div class="intel-sec pinned open" data-section="notes">
-        <div class="intel-sec-head"><span class="intel-sec-name">Notes</span><span class="spacer"></span>
-          ${linkChip}
-          <button class="sm ghost" data-edit-intel="notes">Edit</button>
-        </div>${body}</div>`;
+    const parts = [];
+    if (src) {
+      parts.push(`<a class="intel-link-row" href="${esc(src)}" target="_blank" rel="noopener" title="${esc(src)}">
+        <span class="ilr-ico">🔗</span><span class="ilr-host">${esc(linkHost(src))}</span><span class="spacer"></span><span class="ilr-arrow">↗</span>
+      </a>`);
     }
+    if (row?.body?.trim()) parts.push(`<div class="md">${md(row.body)}</div>`);
+    const body = parts.length ? `<div class="intel-sec-body">${parts.join('')}</div>` : '';
 
-    const bodyView = row?.body
-      ? `<div class="md">${md(row.body)}</div>`
-      : `<div class="intel-empty">Empty${doc && !row ? ` — seed from ${src ? `<a class="link intel-src" href="${esc(src)}" target="_blank" rel="noopener">source ↗</a>` : 'source'}` : ''}.</div>`;
-    return `<div class="intel-sec" data-section="${esc(sec)}">
+    return `<div class="intel-sec ${sec === 'notes' ? 'pinned' : ''}" data-section="${esc(sec)}">
       <div class="intel-sec-head"><span class="intel-sec-name">${esc(title)}</span><span class="spacer"></span>
-        ${src ? `<a class="link intel-src" href="${esc(src)}" target="_blank" rel="noopener">↗</a>` : ''}
         <button class="sm ghost" data-edit-intel="${esc(sec)}">Edit</button>
-      </div>
-      <div class="intel-sec-body">${bodyView}</div>
-    </div>`;
+      </div>${body}</div>`;
   }).join('');
 
   return `<h3>Intel — ${esc(company)}</h3>${secs || '<div class="intel-empty">No intel sections yet.</div>'}
@@ -270,17 +259,19 @@ function editIntel(company, sec) {
   const doc = INTEL_DOCS.find((d) => d.section === sec);
   const link = row?.source_url ?? doc?.url ?? '';
   const note = row?.body ?? '';
-  wrap.classList.add('open');
+  const title = row?.title || doc?.title || sec.replace(/_/g, ' ');
   let body = wrap.querySelector('.intel-sec-body');
-  if (!body) { // link-only notes render without a body — add one for the editor
+  if (!body) { // empty sections render without a body — add one for the editor
     body = document.createElement('div');
     body.className = 'intel-sec-body';
     wrap.appendChild(body);
   }
   body.innerHTML = `
+    <label class="intel-label">Section name</label>
+    <input type="text" class="intel-title-edit" placeholder="${esc(sec.replace(/_/g, ' '))}" value="${esc(title)}">
     <label class="intel-label">Link</label>
     <input type="url" class="intel-link-edit" placeholder="https://…" value="${esc(link)}">
-    <label class="intel-label">Note <span class="muted sm">(markdown: # heading, **bold**, *italic*, \`code\`, [text](url), - bullets)</span></label>
+    <label class="intel-label">Notes <span class="muted sm">(via Markdown)</span></label>
     <textarea class="intel-edit" placeholder="Write a note…">${esc(note)}</textarea>
     <div style="margin-top:8px;display:flex;gap:8px"><button class="sm primary" data-save-intel="${esc(sec)}">Save</button>
     <button class="sm ghost" data-cancel-intel="1">Cancel</button>
@@ -304,7 +295,7 @@ async function saveIntel(company, sec) {
   const wrap = document.querySelector(`.intel-sec[data-section="${CSS.escape(sec)}"]`);
   const body = wrap.querySelector('textarea').value;
   const source_url = wrap.querySelector('.intel-link-edit')?.value.trim() || null;
-  const title = INTEL.get(sec)?.title || null; // preserve an existing display title
+  const title = wrap.querySelector('.intel-title-edit')?.value.trim() || null;
   try {
     await api(`/api/intel/${encodeURIComponent(company)}/${encodeURIComponent(sec)}`, {
       method: 'PUT', headers: { 'Content-Type': 'application/json' },
@@ -325,7 +316,6 @@ document.addEventListener('click', (e) => {
   const deleteIn = e.target.closest('[data-delete-intel]');
   const cancelIn = e.target.closest('[data-cancel-intel]');
   const addIn = e.target.closest('[data-add-intel]');
-  const secHead = e.target.closest('.intel-sec-head');
   const item = e.target.closest('.fitem');
 
   if ($('refresh-all') && e.target === $('refresh-all')) return doRefresh($('refresh-all'), null);
@@ -339,11 +329,6 @@ document.addEventListener('click', (e) => {
   if (addIn) {
     const name = prompt('Section name (e.g. mission, values, policy, interview_guide, notes):');
     if (name) editIntelNew(companyLabelFromView(), name.trim().toLowerCase().replace(/\s+/g, '_'));
-    return;
-  }
-  if (secHead && !e.target.closest('button') && !e.target.closest('a')) {
-    const sect = secHead.closest('.intel-sec');
-    if (!sect.classList.contains('pinned')) sect.classList.toggle('open'); // notes never collapses
     return;
   }
   if (item && item.classList.contains('unread')) {
@@ -361,8 +346,8 @@ function editIntelNew(company, sec) {
   const aside = document.querySelector('.intel');
   if (aside && !document.querySelector(`.intel-sec[data-section="${CSS.escape(sec)}"]`)) {
     const div = document.createElement('div');
-    div.className = 'intel-sec open'; div.dataset.section = sec;
-    div.innerHTML = `<div class="intel-sec-head"><span class="intel-sec-name">${esc(sec.replace(/_/g, ' '))}</span><span class="spacer"></span><button class="sm ghost" data-edit-intel="${esc(sec)}">Edit</button></div><div class="intel-sec-body"><div class="md"></div></div>`;
+    div.className = 'intel-sec'; div.dataset.section = sec;
+    div.innerHTML = `<div class="intel-sec-head"><span class="intel-sec-name">${esc(sec.replace(/_/g, ' '))}</span><span class="spacer"></span><button class="sm ghost" data-edit-intel="${esc(sec)}">Edit</button></div>`;
     aside.insertBefore(div, aside.querySelector('[data-add-intel]'));
   }
   editIntel(company, sec);
