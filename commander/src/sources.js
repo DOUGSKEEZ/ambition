@@ -206,6 +206,27 @@ export const SOURCES = [
     intelDocs: [],
   },
 
+  {
+    key: 'xai',
+    label: 'xAI', // matches the CRM company row + UAV's posting label
+    profile: 'private',
+    homeUrl: 'https://x.ai',
+    // x.ai runs a Cloudflare JS challenge — every path (news, blog, rss.xml) 403s non-browser
+    // clients even with full browser headers, so there is NO fetchable first-party feed. Coverage
+    // comes from a Google-News search (which also picks up x.ai's own posts); the site link-out
+    // works fine in a real browser.
+    links: [{ label: 'News (x.ai)', url: 'https://x.ai/news' }],
+    feeds: {
+      // NOTE: XAI is also a NYSE ticker (XAI Octagon / Madison funds) — the minus-terms keep the
+      // fund-dividend noise out of the feed.
+      news: {
+        adapter: 'rss', url: 'https://news.google.com/rss/search?q=(%22xAI%22%20OR%20%22Grok%22)%20-%22Income%20Fund%22%20-Octagon%20-%22XAI%20Madison%22%20when%3A14d&hl=en-US&gl=US&ceid=US:en',
+        label: 'In the News',
+      },
+    },
+    intelDocs: [],
+  },
+
   // --- Smaller wildcard ----------------------------------------------------
   {
     key: 'arize',
