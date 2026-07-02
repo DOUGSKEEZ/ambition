@@ -164,12 +164,29 @@ export const SOURCES = [
     key: 'google',
     label: 'Gemini', // the CRM company row (and UAV's posting label) is "Gemini", not "Google"
     profile: 'public',
-    homeUrl: 'https://ai.google',
+    homeUrl: 'https://gemini.google',
     appLimit: { max: 3, windowDays: 30 },
+    // Doug's source map (2026-07-02): the Gemini product category on blog.google (real RSS at
+    // <category>/rss/) + the Google Cloud blog (cloudblog.withgoogle.com/rss/ — carries the
+    // Gemini Enterprise / GTM stories). gemini.google/latest-news and the "What's new with Google
+    // Cloud" roundup are JS-rendered single pages → link-outs. news stays the Google-News search
+    // (3rd-party coverage). abc.xyz (Alphabet IR) 403s non-browsers → no financial feed; the
+    // financial_brief intel section covers it manually.
+    links: [
+      { label: 'Latest news', url: 'https://gemini.google/latest-news/' },
+      { label: "What's new (Cloud)", url: 'https://cloud.google.com/blog/topics/inside-google-cloud/whats-new-google-cloud' },
+    ],
     feeds: {
-      blog: { adapter: 'rss', url: 'https://blog.google/technology/ai/rss/' },
-      news: { adapter: 'rss', url: 'https://news.google.com/rss/search?q=%22Google%22%20AI%20when%3A14d&hl=en-US&gl=US&ceid=US:en' },
-      financial: { adapter: 'html', url: 'https://abc.xyz/investor/', item: 'a[href*="earnings"], a[href$=".pdf"]' },
+      news: {
+        adapter: 'rss', url: 'https://news.google.com/rss/search?q=%22Google%22%20AI%20when%3A14d&hl=en-US&gl=US&ceid=US:en',
+        label: 'In the News',
+      },
+      blog: {
+        adapter: 'rss', url: 'https://blog.google/products-and-platforms/products/gemini/rss/', label: 'Gemini Blog',
+      },
+      general: {
+        adapter: 'rss', url: 'https://cloudblog.withgoogle.com/rss/', label: 'Cloud Blog',
+      },
     },
     intelDocs: [
       { section: 'financial_brief', title: 'Financial brief (paste Bloomberg/Morningstar seed)', url: 'https://abc.xyz/investor/', seedable: false },
