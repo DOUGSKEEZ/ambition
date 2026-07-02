@@ -137,10 +137,24 @@ export const SOURCES = [
     label: 'NVIDIA',
     profile: 'public',
     homeUrl: 'https://www.nvidia.com',
+    // All four content feeds are real RSS (source sweep 2026-07-02) — zero HTML parsing:
+    //  - newsroom press releases (MediaRoom platform exposes /rss.xml)
+    //  - company blog (WordPress /feed/)
+    //  - dev blog (WordPress Atom at /blog/feed/)
+    //  - The AI Podcast (Megaphone feed, found via the iTunes lookup API)
+    // Events page + webinar portal are JS-rendered grids (nav-only server HTML) → link-outs.
+    // investor.nvidia.com hard-403s non-browser clients → no financial feed; the financial_brief
+    // intel section (manual paste) covers it for now.
+    // Also available, skipped: nvidianews.nvidia.com/in-the-news (3rd-party press coverage).
+    links: [
+      { label: 'Events', url: 'https://www.nvidia.com/en-us/events/' },
+      { label: 'Webinars', url: 'https://www.nvidia.com/en-us/about-nvidia/webinar-portal/' },
+    ],
     feeds: {
+      news: { adapter: 'rss', url: 'https://nvidianews.nvidia.com/rss.xml', label: 'Newsroom' },
       blog: { adapter: 'rss', url: 'https://blogs.nvidia.com/feed/' },
-      news: { adapter: 'html', url: 'https://nvidianews.nvidia.com/news', item: 'a[href*="/news/"]' },
-      financial: { adapter: 'html', url: 'https://investor.nvidia.com/financial-info/financial-reports/', item: 'a[href$=".pdf"], a[href*="/financial"]' },
+      research: { adapter: 'rss', url: 'https://developer.nvidia.com/blog/feed/', label: 'Dev Blog' },
+      general: { adapter: 'rss', url: 'https://feeds.megaphone.fm/nvidiaaipodcast', label: 'AI Podcast' },
     },
     intelDocs: [
       { section: 'financial_brief', title: 'Financial brief (paste Bloomberg/Morningstar seed)', url: 'https://investor.nvidia.com/', seedable: false },
