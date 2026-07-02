@@ -193,15 +193,33 @@ export const SOURCES = [
     ],
   },
 
+  {
+    key: 'mistral',
+    label: 'Mistral', // matches the CRM company row + UAV's posting label
+    profile: 'private',
+    homeUrl: 'https://mistral.ai',
+    // Lean like the company: one advertised RSS feed (rel=alternate on /news) covering all their
+    // posts; the /news page itself is JS-rendered, so the feed is also the better source.
+    feeds: {
+      news: { adapter: 'rss', url: 'https://mistral.ai/rss.xml' },
+    },
+    intelDocs: [],
+  },
+
   // --- Smaller wildcard ----------------------------------------------------
   {
     key: 'arize',
     label: 'Arize',
     profile: 'private',
     homeUrl: 'https://arize.com',
+    // WordPress site: the blog has a real (unadvertised) feed at /feed/. Press has no feed
+    // (/press/feed/ 404s) — HTML cards: h3 title + a text-content-secondary date span.
     feeds: {
-      blog: { adapter: 'html', url: 'https://arize.com/blog/', item: 'a[href*="/blog/"]' },
-      news: { adapter: 'html', url: 'https://arize.com/press/', item: 'a[href*="/press/"]' },
+      blog: { adapter: 'rss', url: 'https://arize.com/feed/' },
+      news: {
+        adapter: 'html', url: 'https://arize.com/press/', item: 'a[href*="/press/"]', label: 'Press',
+        title: 'h3', date: 'span[class*="text-content-secondary"]',
+      },
     },
     intelDocs: [],
   },
