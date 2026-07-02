@@ -142,7 +142,20 @@ main { padding: 20px; max-width: 1600px; margin: 0 auto; }
 .intel-sec-head .spacer { flex: 1; }
 .intel-sec-body { padding: 10px; display: none; }
 .intel-sec.open .intel-sec-body { display: block; }
-.intel-sec-body .md { line-height: 1.5; white-space: pre-wrap; font-size: 13px; }
+.intel-sec-body .md { line-height: 1.5; font-size: 13px; overflow-wrap: break-word; }
+.intel-sec-body .md h4 { margin: 8px 0 4px; font-size: 14px; }
+.intel-sec-body .md h5 { margin: 6px 0 3px; font-size: 13px; color: var(--muted); text-transform: none; }
+.intel-sec-body .md ul { margin: 4px 0; padding-left: 20px; }
+.intel-sec-body .md li { margin: 2px 0; }
+.intel-sec-body .md code { background: var(--bg); border: 1px solid var(--border); border-radius: 4px; padding: 0 4px; font-size: 12px; }
 .intel-sec-body textarea { width: 100%; min-height: 140px; background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 8px; font: inherit; resize: vertical; }
 .intel-empty { color: var(--muted); font-size: 12px; font-style: italic; }
-.intel-src { font-size: 11px; }
+.intel-src { font-size: 11px; max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* pinned (non-collapsible) section — Notes */
+.intel-sec.pinned { border-color: color-mix(in srgb, var(--accent) 35%, var(--border)); }
+.intel-sec.pinned .intel-sec-head { cursor: default; }
+.intel-sec.pinned .intel-sec-body { display: block; }
+.intel-label { display: block; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin: 8px 0 4px; }
+.intel-label:first-child { margin-top: 0; }
+input.intel-link-edit { width: 100%; background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 7px 8px; font: inherit; font-size: 13px; }

@@ -114,6 +114,8 @@ async function renderCompany(key) {
   try { data = await api(`/api/company/${encodeURIComponent(key)}`); } catch (e) { app().innerHTML = `<div class="empty">${esc(e.message)}</div>`; return; }
   const s = data.source;
   CURRENT.label = s.label;
+  INTEL = new Map((data.intel || []).map((r) => [r.section, r]));
+  INTEL_DOCS = data.intelDocs || [];
 
   const feedCols = KIND_ORDER.filter((k) => data.feeds[k]).map((k) => {
     const f = data.feeds[k];
@@ -159,14 +161,41 @@ function itemHTML(it, kind) {
   </div>`;
 }
 
-// Intel panel: existing sections + any seed docs not yet filled. Each section expands to a viewer;
-// "Edit" swaps in a textarea saved via PUT /api/intel/:company/:section.
+// --- mini-markdown renderer (escape-FIRST, so it's injection-safe; no external lib) ---
+// Supports: # ## ### headings, **bold**, *italic*, `code`, [text](https://url), "- " bullet lists,
+// paragraphs/line breaks. Enough for notes/intel; anything else renders as literal text.
+function md(src) {
+  let h = esc(src);
+  h = h.replace(/`([^`\n]+)`/g, '<code>$1</code>');
+  h = h.replace(/^###\s+(.+)$/gm, '<h5>$1</h5>')
+       .replace(/^##\s+(.+)$/gm, '<h4>$1</h4>')
+       .replace(/^#\s+(.+)$/gm, '<h4>$1</h4>');
+  h = h.replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>')
+       .replace(/(^|[\s(])\*([^*\n]+)\*(?=[\s).,;:!?]|$)/g, '$1<em>$2</em>');
+  // links: href comes from already-escaped text and must look like http(s); quotes are escaped so it
+  // can't break out of the attribute.
+  h = h.replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, '<a class="link" href="$2" target="_blank" rel="noopener">$1</a>');
+  // consecutive "- " lines → one <ul>
+  h = h.replace(/(^|\n)((?:- [^\n]*(?:\n|$))+)/g, (m, pre, block) =>
+    `${pre}<ul>${block.trim().split('\n').map((l) => `<li>${l.replace(/^- /, '')}</li>`).join('')}</ul>`);
+  // remaining newlines → <br>, except right after block elements
+  h = h.replace(/(<\/(?:h4|h5|ul)>)\n/g, '$1').replace(/\n/g, '<br>');
+  return h;
+}
+
+// Raw intel rows for the company being viewed (section → {title, body, source_url}), kept so the
+// editor prefills SOURCE text — the rendered markdown in the DOM is not editable state.
+let INTEL = new Map();
+let INTEL_DOCS = [];
+
+// Intel panel. The 'notes' section is PINNED: never collapsible, an editable Link + Note pair —
+// link-only renders as just the header row, note-only renders without the link chip.
+// Other sections stay collapsible with a seed-doc hint.
 function intelHTML(company, intel, docs) {
   const bySection = new Map(intel.map((r) => [r.section, r]));
-  const order = [];
+  const order = ['notes']; // Doug's own notes — always present, always first
   for (const d of docs || []) if (!order.includes(d.section)) order.push(d.section);
   for (const r of intel) if (!order.includes(r.section)) order.push(r.section);
-  if (!order.includes('notes')) order.push('notes'); // Doug's own notes — always present
   const docFor = (sec) => (docs || []).find((d) => d.section === sec);
 
   const secs = order.map((sec) => {
@@ -174,8 +203,23 @@ function intelHTML(company, intel, docs) {
     const doc = docFor(sec);
     const title = row?.title || doc?.title || sec.replace(/_/g, ' ');
     const src = row?.source_url || doc?.url;
+    const linkChip = src
+      ? `<a class="link intel-src" href="${esc(src)}" target="_blank" rel="noopener" title="${esc(src)}">${esc(linkHost(src))} ↗</a>`
+      : '';
+
+    if (sec === 'notes') {
+      const body = row?.body
+        ? `<div class="intel-sec-body"><div class="md">${md(row.body)}</div></div>`
+        : (src ? '' : `<div class="intel-sec-body"><div class="intel-empty">No notes yet — Edit to add a link and/or note.</div></div>`);
+      return `<div class="intel-sec pinned open" data-section="notes">
+        <div class="intel-sec-head"><span class="intel-sec-name">Notes</span><span class="spacer"></span>
+          ${linkChip}
+          <button class="sm ghost" data-edit-intel="notes">Edit</button>
+        </div>${body}</div>`;
+    }
+
     const bodyView = row?.body
-      ? `<div class="md">${esc(row.body)}</div>`
+      ? `<div class="md">${md(row.body)}</div>`
       : `<div class="intel-empty">Empty${doc && !row ? ` — seed from ${src ? `<a class="link intel-src" href="${esc(src)}" target="_blank" rel="noopener">source ↗</a>` : 'source'}` : ''}.</div>`;
     return `<div class="intel-sec" data-section="${esc(sec)}">
       <div class="intel-sec-head"><span class="intel-sec-name">${esc(title)}</span><span class="spacer"></span>
@@ -188,6 +232,11 @@ function intelHTML(company, intel, docs) {
 
   return `<h3>Intel — ${esc(company)}</h3>${secs || '<div class="intel-empty">No intel sections yet.</div>'}
     <button class="sm ghost" data-add-intel="1" style="margin-top:6px">+ Add section</button>`;
+}
+
+// Short display form of a URL for the notes link chip.
+function linkHost(u) {
+  try { return new URL(u).hostname.replace(/^www\./, ''); } catch { return 'link'; }
 }
 
 // ======================= actions =======================
@@ -212,14 +261,27 @@ async function doSitrep(scope, btn) {
   } catch (e) { toast(e.message); btn.disabled = false; btn.textContent = t; }
 }
 
-// Swap an intel section into an editable textarea.
+// Swap an intel section into its editor: a Link (url) input + a Note (markdown) textarea. Prefills
+// from the RAW stored row (INTEL map), never from the rendered markdown in the DOM.
 function editIntel(company, sec) {
   const wrap = document.querySelector(`.intel-sec[data-section="${CSS.escape(sec)}"]`);
   if (!wrap) return;
-  const body = wrap.querySelector('.intel-sec-body');
-  const current = body.querySelector('.md')?.textContent || '';
+  const row = INTEL.get(sec);
+  const doc = INTEL_DOCS.find((d) => d.section === sec);
+  const link = row?.source_url ?? doc?.url ?? '';
+  const note = row?.body ?? '';
   wrap.classList.add('open');
-  body.innerHTML = `<textarea class="intel-edit">${esc(current)}</textarea>
+  let body = wrap.querySelector('.intel-sec-body');
+  if (!body) { // link-only notes render without a body — add one for the editor
+    body = document.createElement('div');
+    body.className = 'intel-sec-body';
+    wrap.appendChild(body);
+  }
+  body.innerHTML = `
+    <label class="intel-label">Link</label>
+    <input type="url" class="intel-link-edit" placeholder="https://…" value="${esc(link)}">
+    <label class="intel-label">Note <span class="muted sm">(markdown: # heading, **bold**, *italic*, \`code\`, [text](url), - bullets)</span></label>
+    <textarea class="intel-edit" placeholder="Write a note…">${esc(note)}</textarea>
     <div style="margin-top:8px;display:flex;gap:8px"><button class="sm primary" data-save-intel="${esc(sec)}">Save</button>
     <button class="sm ghost" data-cancel-intel="1">Cancel</button></div>`;
   body.querySelector('textarea').focus();
@@ -228,9 +290,12 @@ function editIntel(company, sec) {
 async function saveIntel(company, sec) {
   const wrap = document.querySelector(`.intel-sec[data-section="${CSS.escape(sec)}"]`);
   const body = wrap.querySelector('textarea').value;
+  const source_url = wrap.querySelector('.intel-link-edit')?.value.trim() || null;
+  const title = INTEL.get(sec)?.title || null; // preserve an existing display title
   try {
     await api(`/api/intel/${encodeURIComponent(company)}/${encodeURIComponent(sec)}`, {
-      method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ body }),
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ body, source_url, title }),
     });
     toast('Intel saved'); route();
   } catch (e) { toast(e.message); }
@@ -261,7 +326,11 @@ document.addEventListener('click', (e) => {
     if (name) editIntelNew(companyLabelFromView(), name.trim().toLowerCase().replace(/\s+/g, '_'));
     return;
   }
-  if (secHead && !e.target.closest('button') && !e.target.closest('a')) { secHead.closest('.intel-sec').classList.toggle('open'); return; }
+  if (secHead && !e.target.closest('button') && !e.target.closest('a')) {
+    const sect = secHead.closest('.intel-sec');
+    if (!sect.classList.contains('pinned')) sect.classList.toggle('open'); // notes never collapses
+    return;
+  }
   if (item && item.classList.contains('unread')) {
     jsonPost(`/api/feed/${item.dataset.item}/read`, { read: true }).then(() => item.classList.remove('unread')).catch(() => {});
   }
