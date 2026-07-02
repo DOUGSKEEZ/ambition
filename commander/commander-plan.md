@@ -7,8 +7,12 @@ inbound signal and pairs it with curated reference material and an AI briefing.
 
 ## What it does
 
-- **Separated feeds** (never one noisy super-feed) per company: **News · Blog · Events · Financials**.
-  Each feed is topped with a 1–2 sentence **"Today's summary"** line written by the local qwen3 model.
+- **Separated feeds** (never one noisy super-feed) per company. Kinds: **news · blog · event ·
+  financial · research · general**, with per-company column labels (e.g. OpenAI's news = "Company",
+  NVIDIA's general = "AI Podcast"). Each feed is topped with a 1–2 sentence **"Today's summary"**
+  line written by the local qwen3 model. One RSS url can split into several kind-buckets by
+  `<category>` with priority (OpenAI's single feed → Company / Research & Product / Safety·Eng·
+  Security / Other).
 - **Curated intel** per company: editable typed sections (mission / values / policy / interview guide /
   financial brief / notes) — you paste gated docs (e.g. OpenAI's interview guide) and seed open ones
   from source. Append-oriented; the `notes` section is yours.
@@ -24,7 +28,9 @@ Node 22 ESM + Express + vanilla-JS SPA on **:7705**, shared `sniper` Postgres DB
 reads the other apps' tables read-only for the SITREP. Config-driven, adapter-per-company:
 
 - **`src/sources.js`** — one entry per company: `profile` (public/private — gates the financial feed),
-  `homeUrl`, optional `xListUrl` (X link-out), a `feeds` map (kind → adapter config), and `intelDocs`.
+  `homeUrl`, optional `xListUrl` + `links` (header link-outs for login-gated/JS-only pages), an
+  `appLimit` (mirrors UAV's application quotas so the SITREP's "apply" action is quota-aware), a
+  `feeds` map (kind → adapter config, each with optional `label`/`categories`/selectors), and `intelDocs`.
 - **`src/feeds/`** — `rss` (generic; any real RSS/Atom feed) and `html` (generic selector-driven parser
   via cheerio, the equivalent of UAV's custom google.js). A new stubborn board = a new adapter module.
 - **`src/tracker.js`** — fetch + upsert (append-only; per-feed failure isolation, like UAV).
@@ -41,30 +47,29 @@ Run: `npm install && npm run migrate`, then `npm run dev` (:7705) or `npm run pi
 
 ## Status — shipped v1 (2026-07-01)
 
-Working end-to-end: RSS feeds (OpenAI news, NVIDIA blog, Google blog/news) fetch clean; the tracker
-stores/dedupes; qwen3 produces clean digest lines and an accurate SITREP (verified it cites real
-contact/opportunity/role counts from the other apps); the dashboard + company view + intel editor +
-refresh + X link-out all render.
+Working end-to-end across **eight companies** (source sweep completed 2026-07-02): every configured
+feed fetches clean, titled, and dated; the tracker stores/dedupes; qwen3 writes the per-feed digest
+lines; the SITREP is an **orders briefing** built from deterministic funnel action-flags (rollup.js —
+Sniper staging queue / Meddic campaign & due-date gaps / quota-aware unapplied UAV roles /
+Screen-&-Interview callouts), bulleted in the UI, at whole-campaign + per-company scope. Dashboard
+cards show company logos (Sniper's `/media/company-icons/<id>.png`), two dated headlines per feed,
+and the action flags as chips. The intel panel has a pinned **Notes** (Link + markdown Note),
+editable section names, removable sections, and full-width link rows.
 
-### Per-company selector tuning (the "one company at a time" work)
+### Source map (v1.1)
 
-The `html` adapter is generic; each company's selectors are tuned as it's brought online. Current state:
-
-- **OpenAI** — ✅ RSS, clean.
-- **NVIDIA** — blog ✅ RSS. `news` (nvidianews) selector + `financial` (IR page 403s bots) need work;
-  both isolate safely. Financials are best seeded via the `financial_brief` intel section for now.
-- **Google** — blog ✅ RSS, news ✅ (Google-News RSS, noisy). `financial` (Alphabet IR) selector thin.
-- **Anthropic** — news/blog ✅ (heading-based titles clean); `events` selector grabs "Learn more" — needs
-  a better item selector (the events page is partly JS-rendered).
-- **Cursor** — returns items but titles mash date/category (cards have no heading) — needs a `title`
-  selector.
-- **Arize** — wildcard; blog/news selectors still grab hero/nav links — needs tightening. Do last.
-
-Next tuning pass: add explicit `title`/`item` selectors per stubborn company in `src/sources.js` (no
-core-code change), and seed each company's intel sections.
+Kinds are per-company (a feed config's `label` overrides the column title). Patterns that recur:
+**hidden RSS** (WordPress `/feed/`, MediaRoom `/rss.xml`, Discourse `.rss`, blog.google
+`<category>/rss/`, podcast feeds via the iTunes lookup API), **selector-driven html cards**, and
+**link-outs** for login-gated or JS-rendered pages. Both public companies' IR sites hard-403
+non-browsers → no financial feeds; `financial_brief` intel sections instead. One company's site
+Cloudflare-challenges ALL server-side fetches (even sitemap.xml, despite a permissive robots.txt) —
+its column is a Google-News search feed (minus-terms de-noise an identically-tickered NYSE fund)
+plus a site link-out; first-party would need a Wayback-relay adapter or a headless browser (phase 2).
 
 ## Deferred (phase 2)
 
-X/Twitter in-app feed (paid API — v1 links out to a curated X List), email digest, a richer financial
-adapter (parse actual figures, not just report links), per-item AI summaries at scale, Commander PNG
-icons, and `link-commander` nav entries in the sibling apps.
+X/Twitter in-app feed (paid API — the one company above would benefit most; v1 links out), SEC EDGAR
+filings feeds for the public companies (their IR pages are bot-walled; EDGAR is public JSON), email
+digest, per-item AI summaries at scale, intel seeding from `seedable` docs, Commander PNG icons, and
+`link-commander` nav entries in the sibling apps.
