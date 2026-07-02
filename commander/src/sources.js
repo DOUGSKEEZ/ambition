@@ -11,9 +11,12 @@
 //   profile    'public' | 'private' — gates the `financial` feed (only public companies have one)
 //   homeUrl    the company's site (linked in the UI)
 //   xListUrl   optional: a curated X/Twitter List to link OUT to (no in-app scraping in v1)
-//   feeds      map of kind -> feed config; kind ∈ {news, blog, event, financial}. Each config names an
-//              `adapter` (see src/feeds/) plus its params. A company only lists the feeds it actually
-//              has — not every company has all four.
+//   links      optional [{label, url}]: extra header link-outs (e.g. a login-gated events forum we
+//              can't fetch)
+//   feeds      map of kind -> feed config; kind ∈ {news, blog, event, financial, research, general}.
+//              Each config names an `adapter` (see src/feeds/) plus its params, and may set `label`
+//              to override the column title in the UI (e.g. OpenAI's news kind shows as "Company").
+//              A company only lists the feeds it actually has.
 //   intelDocs  seeds for the curated intel panel: {section, title, url, seedable?}. `seedable:true`
 //              means the pipeline may fetch+store the page text; otherwise it's a manual paste (e.g.
 //              gated pages like OpenAI's interview guide) and only the source_url is pre-filled.
@@ -66,8 +69,29 @@ export const SOURCES = [
     profile: 'private',
     homeUrl: 'https://openai.com',
     appLimit: { max: 5, windowDays: 180 },
+    // Events live at forum.openai.com/home/events — LOGIN-GATED, can't be fetched; link out instead.
+    links: [{ label: 'Events (forum)', url: 'https://forum.openai.com/home/events' }],
+    // One RSS, four buckets split by <category> (Doug's 2026-07-02 mapping). Priority is encoded via
+    // excludes so a multi-category item lands in exactly ONE bucket: Company wins, then
+    // Research+Product, then Safety/Eng/Security, everything else falls through to Other.
     feeds: {
-      news: { adapter: 'rss', url: 'https://openai.com/news/rss.xml' },
+      news: {
+        adapter: 'rss', url: 'https://openai.com/news/rss.xml', label: 'Company',
+        categories: ['Company'],
+      },
+      research: {
+        adapter: 'rss', url: 'https://openai.com/news/rss.xml', label: 'Research & Product',
+        categories: ['Research', 'Product'], excludeCategories: ['Company'],
+      },
+      blog: {
+        adapter: 'rss', url: 'https://openai.com/news/rss.xml', label: 'Safety · Eng · Security',
+        categories: ['Safety', 'Safety & Alignment', 'Engineering', 'Security'],
+        excludeCategories: ['Company', 'Research', 'Product'],
+      },
+      general: {
+        adapter: 'rss', url: 'https://openai.com/news/rss.xml', label: 'Other',
+        excludeCategories: ['Company', 'Research', 'Product', 'Safety', 'Safety & Alignment', 'Engineering', 'Security'],
+      },
     },
     intelDocs: [
       { section: 'mission', title: 'Charter', url: 'https://openai.com/charter/', seedable: false },
@@ -133,7 +157,7 @@ export const SOURCES = [
   },
 ];
 
-export const KINDS = ['news', 'blog', 'event', 'financial', 'research'];
+export const KINDS = ['news', 'blog', 'event', 'financial', 'research', 'general'];
 
 export const getSource = (key) => SOURCES.find((s) => s.key === key);
 

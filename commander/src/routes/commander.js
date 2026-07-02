@@ -13,7 +13,12 @@ const router = Router();
 // Public shape of a source config (no internal fields the client doesn't need).
 const publicSource = (s) => ({
   key: s.key, label: s.label, profile: s.profile, homeUrl: s.homeUrl,
-  xListUrl: s.xListUrl || null, kinds: Object.keys(s.feeds || {}),
+  xListUrl: s.xListUrl || null, links: s.links || [],
+  kinds: Object.keys(s.feeds || {}),
+  // per-feed column-title overrides (e.g. OpenAI news → "Company")
+  kindLabels: Object.fromEntries(
+    Object.entries(s.feeds || {}).filter(([, f]) => f.label).map(([k, f]) => [k, f.label])
+  ),
 });
 
 // --- Latest-per-group helpers (DISTINCT ON reads the newest row per group) ---

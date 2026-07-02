@@ -105,7 +105,7 @@ main { padding: 20px; max-width: 1600px; margin: 0 auto; }
 
 /* feed-kind accent dots */
 .fk.news { color: var(--accent); } .fk.blog { color: var(--good); } .fk.event { color: var(--warn); } .fk.financial { color: #a974ff; }
-.fk.research { color: #4fd7e0; }
+.fk.research { color: #4fd7e0; } .fk.general { color: var(--muted); }
 
 /* --- company view --- */
 .co-head { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }

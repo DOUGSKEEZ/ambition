@@ -33,8 +33,10 @@ function toast(msg) {
   clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.add('hidden'), 2600);
 }
 
-const KIND_LABEL = { news: 'News', blog: 'Blog', event: 'Events', financial: 'Financials', research: 'Research' };
-const KIND_ORDER = ['news', 'blog', 'event', 'financial', 'research'];
+const KIND_LABEL = { news: 'News', blog: 'Blog', event: 'Events', financial: 'Financials', research: 'Research', general: 'Other' };
+const KIND_ORDER = ['news', 'blog', 'event', 'financial', 'research', 'general'];
+// Column title: a per-company override from the source config wins (OpenAI's news kind = "Company").
+const kindLabel = (src, k) => src?.kindLabels?.[k] || KIND_LABEL[k];
 const fmtDate = (d) => (d ? new Date(d).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) : '');
 const fmtWhen = (d) => (d ? `updated ${new Date(d).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}` : '');
 const app = () => $('app');
@@ -81,7 +83,7 @@ async function renderDashboard() {
       const rows = items.length
         ? items.map((h) => `<div class="fh"><span class="fh-date">${esc(fmtDate(h.published_at || h.first_seen_at))}</span><span class="fh-title">${esc(h.title)}</span></div>`).join('')
         : `<div class="fh"><span class="muted">—</span></div>`;
-      return `<div class="feedline"><span class="fk ${k}">${esc(KIND_LABEL[k])}</span><div class="fh-list">${rows}</div></div>`;
+      return `<div class="feedline"><span class="fk ${k}">${esc(kindLabel(c, k))}</span><div class="fh-list">${rows}</div></div>`;
     }).join('');
     const unread = c.counts.unread ? `<span class="badge unread">${c.counts.unread} new</span>` : '';
     return `<div class="ccard" data-key="${esc(c.key)}">
@@ -120,7 +122,7 @@ async function renderCompany(key) {
       : `<div class="feedcol-digest pending">No AI summary yet.</div>`;
     const items = f.items.length ? f.items.map((it) => itemHTML(it, k)).join('') : `<div class="empty" style="padding:20px">No items yet.</div>`;
     return `<div class="feedcol">
-      <div class="feedcol-head"><div class="feedcol-title">${esc(KIND_LABEL[k])}</div>${digest}</div>
+      <div class="feedcol-head"><div class="feedcol-title">${esc(kindLabel(s, k))}</div>${digest}</div>
       <div class="feedcol-list">${items}</div>
     </div>`;
   }).join('');
@@ -133,6 +135,7 @@ async function renderCompany(key) {
       <span class="badge ${s.profile}">${esc(s.profile)}</span>
       <div class="co-actions">
         <a class="linkbtn" href="${esc(s.homeUrl)}" target="_blank" rel="noopener">Site ↗</a>
+        ${(s.links || []).map((l) => `<a class="linkbtn" href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.label)} ↗</a>`).join('')}
         ${s.xListUrl ? `<a class="linkbtn" href="${esc(s.xListUrl)}" target="_blank" rel="noopener">X List ↗</a>` : ''}
         <button class="primary" data-refresh="${esc(s.key)}">⟳ Refresh</button>
       </div>
@@ -163,6 +166,7 @@ function intelHTML(company, intel, docs) {
   const order = [];
   for (const d of docs || []) if (!order.includes(d.section)) order.push(d.section);
   for (const r of intel) if (!order.includes(r.section)) order.push(r.section);
+  if (!order.includes('notes')) order.push('notes'); // Doug's own notes — always present
   const docFor = (sec) => (docs || []).find((d) => d.section === sec);
 
   const secs = order.map((sec) => {
