@@ -48,9 +48,10 @@ export const SOURCES = [
         title: '[fs-list-field="title"]', link: 'a[href^="/events/"]',
         date: '[fs-list-field="date"]', location: '[fs-list-field="format"]', eventDates: true,
       },
-      // Research publications — same PublicationList component as /news, same hooks.
+      // Research publications — same PublicationList component as /news, same hooks. :not() drops
+      // the static /research/team/* links (Alignment / Interpretability / …) the hero section adds.
       research: {
-        adapter: 'html', url: 'https://www.anthropic.com/research', item: 'a[href^="/research/"]',
+        adapter: 'html', url: 'https://www.anthropic.com/research', item: 'a[href^="/research/"]:not([href*="/team/"])',
         title: '[class*="__title"]', date: '[class*="__date"]',
       },
     },
