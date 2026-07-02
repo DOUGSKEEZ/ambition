@@ -1,4 +1,6 @@
 :root {
+  /* native widgets (scrollbars, inputs, date pickers) follow the theme instead of the OS default */
+  color-scheme: dark;
   --bg: #0f1115;
   --panel: #181b22;
   --panel-2: #1f2430;
@@ -11,6 +13,7 @@
   --warn: #f1c40f;
 }
 [data-theme="light"] {
+  color-scheme: light;
   --bg: #f4f5f7;
   --panel: #ffffff;
   --panel-2: #eef0f3;
@@ -23,7 +26,7 @@
   --warn: #b8860b;
 }
 
-* { box-sizing: border-box; }
+* { box-sizing: border-box; scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
 body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); font-size: 14px; }
 
 /* --- header chrome (shared with the other apps) --- */
@@ -44,6 +47,7 @@ button.primary { background: var(--accent); border-color: var(--accent); color: 
 button.sm { padding: 4px 8px; font-size: 12px; }
 button.ghost { background: none; border-color: transparent; color: var(--muted); }
 button.ghost:hover { color: var(--text); border-color: var(--border); }
+button.ghost.danger:hover { color: var(--bad); border-color: var(--bad); }
 
 main { padding: 20px; max-width: 1600px; margin: 0 auto; }
 .toolbar { display: flex; gap: 12px; align-items: center; margin-bottom: 16px; flex-wrap: wrap; }
@@ -155,6 +159,9 @@ main { padding: 20px; max-width: 1600px; margin: 0 auto; }
 /* pinned (non-collapsible) section — Notes */
 .intel-sec.pinned { border-color: color-mix(in srgb, var(--accent) 35%, var(--border)); }
 .intel-sec.pinned .intel-sec-head { cursor: default; }
+/* the notes link: a real button-sized target, not a tiny caption */
+.intel-sec.pinned .intel-src { font-size: 13px; padding: 4px 10px; border: 1px solid var(--border); border-radius: 6px; max-width: 220px; }
+.intel-sec.pinned .intel-src:hover { border-color: var(--accent); text-decoration: none; }
 .intel-sec.pinned .intel-sec-body { display: block; }
 .intel-label { display: block; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin: 8px 0 4px; }
 .intel-label:first-child { margin-top: 0; }

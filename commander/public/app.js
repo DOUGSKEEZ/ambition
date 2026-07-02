@@ -283,8 +283,21 @@ function editIntel(company, sec) {
     <label class="intel-label">Note <span class="muted sm">(markdown: # heading, **bold**, *italic*, \`code\`, [text](url), - bullets)</span></label>
     <textarea class="intel-edit" placeholder="Write a note…">${esc(note)}</textarea>
     <div style="margin-top:8px;display:flex;gap:8px"><button class="sm primary" data-save-intel="${esc(sec)}">Save</button>
-    <button class="sm ghost" data-cancel-intel="1">Cancel</button></div>`;
+    <button class="sm ghost" data-cancel-intel="1">Cancel</button>
+    <span class="spacer"></span>
+    ${row ? `<button class="sm ghost danger" data-delete-intel="${esc(sec)}">${sec === 'notes' ? 'Clear' : 'Delete'}</button>` : ''}</div>`;
   body.querySelector('textarea').focus();
+}
+
+// Remove a section's stored row. Custom sections vanish; notes/seeded sections revert to empty.
+async function deleteIntel(company, sec) {
+  const label = sec === 'notes' ? 'Clear the note (and its link)?' : `Delete the "${sec.replace(/_/g, ' ')}" section?`;
+  if (!confirm(label)) return;
+  try {
+    await api(`/api/intel/${encodeURIComponent(company)}/${encodeURIComponent(sec)}`, { method: 'DELETE' });
+    toast(sec === 'notes' ? 'Notes cleared' : 'Section deleted');
+    route();
+  } catch (e) { toast(e.message); }
 }
 
 async function saveIntel(company, sec) {
@@ -309,6 +322,7 @@ document.addEventListener('click', (e) => {
   const sitrep = e.target.closest('[data-sitrep]');
   const editIn = e.target.closest('[data-edit-intel]');
   const saveIn = e.target.closest('[data-save-intel]');
+  const deleteIn = e.target.closest('[data-delete-intel]');
   const cancelIn = e.target.closest('[data-cancel-intel]');
   const addIn = e.target.closest('[data-add-intel]');
   const secHead = e.target.closest('.intel-sec-head');
@@ -320,6 +334,7 @@ document.addEventListener('click', (e) => {
   if (nav) { location.hash = nav.dataset.nav; return; }
   if (editIn) { const co = companyLabelFromView(); return editIntel(co, editIn.dataset.editIntel); }
   if (saveIn) { const co = companyLabelFromView(); return saveIntel(co, saveIn.dataset.saveIntel); }
+  if (deleteIn) { const co = companyLabelFromView(); return deleteIntel(co, deleteIn.dataset.deleteIntel); }
   if (cancelIn) return route();
   if (addIn) {
     const name = prompt('Section name (e.g. mission, values, policy, interview_guide, notes):');

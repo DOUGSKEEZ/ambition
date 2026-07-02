@@ -209,6 +209,18 @@ router.put('/intel/:company/:section', async (req, res) => {
   }
 });
 
+// DELETE /api/intel/:company/:section — remove a section's stored row. A custom section disappears;
+// a seeded/pinned section (intelDocs, notes) just reverts to its empty placeholder.
+router.delete('/intel/:company/:section', async (req, res) => {
+  const { company, section } = req.params;
+  try {
+    const r = await query(`DELETE FROM company_intel WHERE company = $1 AND section = $2 RETURNING section`, [company, section]);
+    res.json({ deleted: r.rows.length > 0 });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // POST /api/feed/:id/read — set read state ({read:true|false}, default true).
 router.post('/feed/:id/read', async (req, res) => {
   const id = Number.parseInt(req.params.id, 10);
