@@ -33,8 +33,8 @@ function toast(msg) {
   clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.add('hidden'), 2600);
 }
 
-const KIND_LABEL = { news: 'News', blog: 'Blog', event: 'Events', financial: 'Financials', research: 'Research', customers: 'Customers' };
-const KIND_ORDER = ['news', 'blog', 'event', 'financial', 'research', 'customers'];
+const KIND_LABEL = { news: 'News', blog: 'Blog', event: 'Events', financial: 'Financials', research: 'Research' };
+const KIND_ORDER = ['news', 'blog', 'event', 'financial', 'research'];
 const fmtDate = (d) => (d ? new Date(d).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) : '');
 const fmtWhen = (d) => (d ? `updated ${new Date(d).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}` : '');
 const app = () => $('app');

@@ -53,21 +53,10 @@ export const SOURCES = [
         adapter: 'html', url: 'https://www.anthropic.com/research', item: 'a[href^="/research/"]',
         title: '[class*="__title"]', date: '[class*="__date"]',
       },
-      // Customer case studies (claude.com) — Webflow cards; overlay link, h3 client name, industry
-      // as the first list value (shown as the excerpt). Undated → sorted by first-seen.
-      customers: {
-        adapter: 'html', url: 'https://claude.com/customers', item: '.card_cs_list_wrap',
-        title: 'h3', link: 'a[href^="/customers/"]', summary: '.card_cs_list_val',
-      },
     },
     intelDocs: [
       { section: 'policy', title: 'Candidate AI guidance', url: 'https://www.anthropic.com/candidate-ai-guidance', seedable: true },
       { section: 'values', title: 'Constitution', url: 'https://www.anthropic.com/constitution', seedable: true },
-      // Static GTM reference (footer sweep 2026-07-01): how Anthropic positions per vertical, the
-      // partner motion, and enterprise packaging — interview-prep gold for an AE. Manual paste.
-      { section: 'gtm_solutions', title: 'GTM / solutions by vertical', url: 'https://claude.com/solutions/financial-services', seedable: false },
-      { section: 'partners', title: 'Partner ecosystem', url: 'https://claude.com/partners', seedable: false },
-      { section: 'pricing', title: 'Enterprise pricing/packaging', url: 'https://claude.com/pricing/enterprise', seedable: false },
     ],
   },
   {
@@ -143,7 +132,7 @@ export const SOURCES = [
   },
 ];
 
-export const KINDS = ['news', 'blog', 'event', 'financial', 'research', 'customers'];
+export const KINDS = ['news', 'blog', 'event', 'financial', 'research'];
 
 export const getSource = (key) => SOURCES.find((s) => s.key === key);
 
