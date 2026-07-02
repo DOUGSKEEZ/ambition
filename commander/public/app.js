@@ -33,8 +33,8 @@ function toast(msg) {
   clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.add('hidden'), 2600);
 }
 
-const KIND_LABEL = { news: 'News', blog: 'Blog', event: 'Events', financial: 'Financials' };
-const KIND_ORDER = ['news', 'blog', 'event', 'financial'];
+const KIND_LABEL = { news: 'News', blog: 'Blog', event: 'Events', financial: 'Financials', research: 'Research', customers: 'Customers' };
+const KIND_ORDER = ['news', 'blog', 'event', 'financial', 'research', 'customers'];
 const fmtDate = (d) => (d ? new Date(d).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) : '');
 const fmtWhen = (d) => (d ? `updated ${new Date(d).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}` : '');
 const app = () => $('app');
@@ -138,7 +138,6 @@ async function renderCompany(key) {
       </div>
     </div>
     ${sitrepHTML(data.sitrep, { scope: s.label, label: s.label })}
-    <div class="co-actions-row">${actionsHTML(data.actions, 6)}</div>
     <div class="co-layout">
       <div><div class="feeds-grid">${feedCols || '<div class="empty">No feeds configured.</div>'}</div></div>
       <aside class="intel">${intelHTML(s.label, data.intel, data.intelDocs)}</aside>
