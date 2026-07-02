@@ -223,9 +223,13 @@ function intelHTML(company, intel, docs) {
     <button class="sm ghost" data-add-intel="1" style="margin-top:6px">+ Add section</button>`;
 }
 
-// Short display form of a URL for the notes link chip.
+// Display form of a URL for link rows: host + path, no scheme/www, no trailing slash —
+// e.g. https://www.openai.com/charter/ → openai.com/charter. CSS ellipsizes long ones.
 function linkHost(u) {
-  try { return new URL(u).hostname.replace(/^www\./, ''); } catch { return 'link'; }
+  try {
+    const url = new URL(u);
+    return (url.hostname.replace(/^www\./, '') + url.pathname).replace(/\/$/, '');
+  } catch { return 'link'; }
 }
 
 // ======================= actions =======================
