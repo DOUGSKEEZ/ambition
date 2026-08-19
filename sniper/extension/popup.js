@@ -2,6 +2,7 @@
 // payload to the background worker for POSTing.
 const statusEl = document.getElementById('status');
 const captureBtn = document.getElementById('capture');
+const supportBtn = document.getElementById('capture-support');
 
 function setStatus(msg, cls) {
   statusEl.textContent = msg;
@@ -87,8 +88,10 @@ async function collectFromPage() {
   };
 }
 
-captureBtn.onclick = async () => {
-  captureBtn.disabled = true;
+// destination null = normal Sniper staging; 'support' = personal network (Support app :7707,
+// hidden import_status, no AI enrichment) — same endpoint, the server routes on the flag.
+async function doCapture(destination) {
+  captureBtn.disabled = supportBtn.disabled = true;
   setStatus('Capturing…');
   try {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -111,6 +114,7 @@ captureBtn.onclick = async () => {
       my_notes: document.getElementById('notes').value.trim() || null,
       captured_at: new Date().toISOString(),
     };
+    if (destination) payload.destination = destination;
 
     // Fire-and-forget: hand the payload to the background worker and report success
     // immediately. The background does the POST (and download fallback) on its own;
@@ -120,12 +124,15 @@ captureBtn.onclick = async () => {
       else if (resp && !resp.ok) setStatus(`✗ ${resp.error || 'send failed'}`, 'err');
     }).catch(() => { /* popup may already be closed; background still completes */ });
 
-    setStatus('✓ Captured — staging in Sniper', 'ok');
-    captureBtn.disabled = false;
+    setStatus(destination === 'support'
+      ? '✓ Captured — sent to Support' : '✓ Captured — staging in Sniper', 'ok');
   } catch (err) {
     setStatus(`✗ ${err.message}`, 'err');
-    captureBtn.disabled = false;
   }
-};
+  captureBtn.disabled = supportBtn.disabled = false;
+}
+
+captureBtn.onclick = () => doCapture(null);
+supportBtn.onclick = () => doCapture('support');
 
 loadCompanies();

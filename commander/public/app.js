@@ -8,6 +8,7 @@ const $ = (id) => document.getElementById(id);
   const host = location.hostname;
   const set = (id, port) => { const a = $(id); if (a) a.href = `${location.protocol}//${host}:${port}/`; };
   set('link-sniper', 7700); set('link-medic', 7701); set('link-engineer', 7702); set('link-specops', 7703); set('link-uav', 7704);
+  set('link-support', 7707);
   const btn = $('theme-toggle');
   const sync = () => { btn.textContent = document.documentElement.getAttribute('data-theme') === 'light' ? '☀️' : '🌙'; };
   if (btn) {
@@ -38,6 +39,10 @@ const KIND_ORDER = ['news', 'blog', 'event', 'financial', 'research', 'general']
 // Column title: a per-company override from the source config wins (OpenAI's news kind = "Company").
 const kindLabel = (src, k) => src?.kindLabels?.[k] || KIND_LABEL[k];
 const fmtDate = (d) => (d ? new Date(d).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) : '');
+// date-ONLY strings (fiscal quarter ends, 'yyyy-mm-dd'): pin to noon so the local render can't
+// slip a day across the UTC-midnight boundary
+const fmtDay = (d, withYear = false) =>
+  (d ? new Date(`${d}T12:00:00`).toLocaleDateString(undefined, { month: 'short', day: 'numeric', ...(withYear ? { year: 'numeric' } : {}) }) : '');
 const fmtWhen = (d) => (d ? `updated ${new Date(d).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}` : '');
 const app = () => $('app');
 
@@ -53,8 +58,36 @@ function actionsHTML(actions, max = 3) {
   ).join('') + (actions.length > max ? `<div class="act-more">+${actions.length - max} more</div>` : '');
 }
 
+// --- Fiscal-quarter intel (from src/fiscal.js via the API) ---
+// The chip: where the company sits in ITS fiscal year, amber inside the ~30-day end-of-quarter jam,
+// dashed when the calendar is assumed (private, undisclosed) rather than documented.
+function fiscalChip(f) {
+  if (!f) return '';
+  const cls = `badge fiscal${f.daysToQuarterEnd <= 30 ? ' closing' : ''}${f.confirmed ? '' : ' assumed'}`;
+  const title = `Last quarter ended ${fmtDay(f.lastQuarterEnd, true)} · ${f.label} closes ${fmtDay(f.nextQuarterEnd, true)} · FY ends ${fmtDay(f.fyEnd, true)}${f.confirmed ? '' : ' (assumed calendar year)'}`;
+  return `<span class="${cls}" title="${esc(title)}">${esc(f.label)} · ends ${esc(fmtDay(f.nextQuarterEnd))} · ${f.daysToQuarterEnd}d</span>`;
+}
+
+// The standing SITREP line — ALWAYS rendered (deterministic, never left to the LLM): last + next
+// quarter end for this company.
+function fiscalLineHTML(f) {
+  if (!f) return '';
+  const jam = f.daysToQuarterEnd <= 30 ? ' — <strong>end-of-quarter jam</strong>' : '';
+  return `<div class="sitrep-fiscal">📅 <strong>${esc(f.label)}</strong> closes ${esc(fmtDay(f.nextQuarterEnd, true))} (${f.daysToQuarterEnd}d)${jam} · last quarter ended ${esc(fmtDay(f.lastQuarterEnd, true))}${f.confirmed ? '' : ' · calendar year assumed'}</div>`;
+}
+
+// Dashboard variant: every company inside 45 days of a quarter close, soonest first.
+function quarterRadarHTML(companies) {
+  const closing = (companies || [])
+    .filter((c) => c.fiscal && c.fiscal.daysToQuarterEnd <= 45)
+    .sort((a, b) => a.fiscal.daysToQuarterEnd - b.fiscal.daysToQuarterEnd)
+    .map((c) => `<strong>${esc(c.label)}</strong> ${esc(fmtDay(c.fiscal.nextQuarterEnd))} (${c.fiscal.daysToQuarterEnd}d)`);
+  if (!closing.length) return '';
+  return `<div class="sitrep-fiscal">📅 Quarter-close radar: ${closing.join(' · ')}</div>`;
+}
+
 // --- SITREP block (shared by dashboard + company view) ---
-function sitrepHTML(sitrep, { scope, label }) {
+function sitrepHTML(sitrep, { scope, label, fiscalHTML = '' }) {
   // The model emits one action per line; render each as a bullet. Older single-paragraph rows are
   // split on sentence boundaries so they bullet too.
   let body = `<div class="sitrep-body">No SITREP yet — click <strong>Brief me</strong> to generate one.</div>`;
@@ -68,16 +101,28 @@ function sitrepHTML(sitrep, { scope, label }) {
       <span class="sitrep-title">⭐ SITREP · ${esc(label)}</span>
       <button class="sm" data-sitrep="${esc(scope)}">Brief me ↻</button>
       <span class="sitrep-when">${esc(sitrep?.generated_at ? fmtWhen(sitrep.generated_at) : '')}</span>
-    </div>${body}</div>`;
+    </div>${fiscalHTML}${body}</div>`;
 }
 
 // ======================= DASHBOARD =======================
+// Market-map filter (a category key or 'all'), persisted like the theme.
+let catFilter = localStorage.getItem('cmd-cat-filter') || 'all';
+
+function applyCatFilter() {
+  const secs = [...document.querySelectorAll('.cat-section')];
+  // A stale persisted key (category renamed/removed) would blank the whole dashboard — reset instead.
+  if (catFilter !== 'all' && !secs.some((s) => s.dataset.cat === catFilter)) catFilter = 'all';
+  secs.forEach((sec) => sec.classList.toggle('hidden', catFilter !== 'all' && sec.dataset.cat !== catFilter));
+  document.querySelectorAll('[data-cat-filter]').forEach((b) =>
+    b.classList.toggle('active', b.dataset.catFilter === catFilter));
+}
+
 async function renderDashboard() {
   app().innerHTML = `<div class="empty">Loading intelligence…</div>`;
   let data;
   try { data = await api('/api/companies'); } catch (e) { app().innerHTML = `<div class="empty">${esc(e.message)}</div>`; return; }
 
-  const cards = data.companies.map((c) => {
+  const cardHTML = (c) => {
     const feeds = KIND_ORDER.filter((k) => c.kinds.includes(k)).map((k) => {
       const items = c.headlines[k] || [];
       const rows = items.length
@@ -86,25 +131,45 @@ async function renderDashboard() {
       return `<div class="feedline"><span class="fk ${k}">${esc(kindLabel(c, k))}</span><div class="fh-list">${rows}</div></div>`;
     }).join('');
     const unread = c.counts.unread ? `<span class="badge unread">${c.counts.unread} new</span>` : '';
-    return `<div class="ccard" data-key="${esc(c.key)}">
+    return `<div class="ccard cat-${esc(c.category)}" data-key="${esc(c.key)}" data-cat="${esc(c.category)}">
       <div class="ccard-head">
         ${companyLogo(c.company_id)}
         <span class="ccard-name">${esc(c.label)}</span>
-        <span class="ccard-meta"><span class="badge ${c.profile}">${esc(c.profile)}</span>${unread}</span>
+        <span class="ccard-meta">${fiscalChip(c.fiscal)}<span class="badge ${c.profile}">${esc(c.profile)}</span>${unread}</span>
       </div>
       <div class="ccard-actions">${actionsHTML(c.actions)}</div>
       <div class="ccard-feeds">${feeds || '<div class="muted sm">No feeds configured</div>'}</div>
     </div>`;
+  };
+
+  // One section per category (skip empty ones); companies missing a category land in "Other".
+  const cats = data.categories || [];
+  const known = new Set(cats.map((c) => c.key));
+  const stray = data.companies.filter((c) => !known.has(c.category));
+  const allCats = stray.length ? [...cats, { key: 'other', label: 'Other', short: 'Other' }] : cats;
+  const sections = allCats.map((cat) => {
+    const cos = cat.key === 'other' ? stray : data.companies.filter((c) => c.category === cat.key);
+    if (!cos.length) return '';
+    return `<section class="cat-section" data-cat="${esc(cat.key)}">
+      <div class="cat-head cat-${esc(cat.key)}"><span class="cat-dot"></span>${esc(cat.label)}<span class="cat-count">${cos.length}</span></div>
+      <div class="cards">${cos.map(cardHTML).join('')}</div>
+    </section>`;
   }).join('');
 
+  const chips = [{ key: 'all', short: 'All' }, ...allCats].map((cat) =>
+    `<button class="cat-chip cat-${esc(cat.key)}" data-cat-filter="${esc(cat.key)}">${cat.key === 'all' ? '' : '<span class="cat-dot"></span>'}${esc(cat.short)}</button>`
+  ).join('');
+
   app().innerHTML = `
-    ${sitrepHTML(data.sitrep, { scope: 'all', label: 'Whole campaign' })}
+    ${sitrepHTML(data.sitrep, { scope: 'all', label: 'Whole campaign', fiscalHTML: quarterRadarHTML(data.companies) })}
     <div class="toolbar">
       <button id="refresh-all" class="primary">⟳ Refresh all intelligence</button>
+      <span class="cat-chips">${chips}</span>
       <span class="spacer"></span>
       <span class="muted sm">${data.companies.length} companies watched</span>
     </div>
-    <div class="cards">${cards}</div>`;
+    ${sections}`;
+  applyCatFilter();
 }
 
 // ======================= COMPANY VIEW =======================
@@ -134,7 +199,9 @@ async function renderCompany(key) {
     <div class="co-head">
       ${companyLogo(data.company_id, 'co-logo lg')}
       <span class="co-title">${esc(s.label)}</span>
+      ${s.category ? `<span class="badge cat-${esc(s.category)}"><span class="cat-dot"></span>${esc((data.categories || []).find((c) => c.key === s.category)?.label || s.category)}</span>` : ''}
       <span class="badge ${s.profile}">${esc(s.profile)}</span>
+      ${fiscalChip(s.fiscal)}
       <div class="co-actions">
         <a class="linkbtn" href="${esc(s.homeUrl)}" target="_blank" rel="noopener">Site ↗</a>
         ${(s.links || []).map((l) => `<a class="linkbtn" href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.label)} ↗</a>`).join('')}
@@ -142,7 +209,7 @@ async function renderCompany(key) {
         <button class="primary" data-refresh="${esc(s.key)}">⟳ Refresh</button>
       </div>
     </div>
-    ${sitrepHTML(data.sitrep, { scope: s.label, label: s.label })}
+    ${sitrepHTML(data.sitrep, { scope: s.label, label: s.label, fiscalHTML: fiscalLineHTML(s.fiscal) })}
     <div class="co-layout">
       <div><div class="feeds-grid">${feedCols || '<div class="empty">No feeds configured.</div>'}</div></div>
       <aside class="intel">${intelHTML(s.label, data.intel, data.intelDocs)}</aside>
@@ -322,6 +389,13 @@ document.addEventListener('click', (e) => {
   const addIn = e.target.closest('[data-add-intel]');
   const item = e.target.closest('.fitem');
 
+  const catChip = e.target.closest('[data-cat-filter]');
+  if (catChip) {
+    catFilter = catChip.dataset.catFilter;
+    localStorage.setItem('cmd-cat-filter', catFilter);
+    applyCatFilter();
+    return;
+  }
   if ($('refresh-all') && e.target === $('refresh-all')) return doRefresh($('refresh-all'), null);
   if (refresh) return doRefresh(refresh, refresh.dataset.refresh);
   if (sitrep) return doSitrep(sitrep.dataset.sitrep, sitrep);

@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>support — Personal Network</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ctext y='14' font-size='14'%3E%F0%9F%9B%A1%3C/text%3E%3C/svg%3E" />
+  <script>
+    (function () {
+      var t = localStorage.getItem('theme');
+      if (!t) t = window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', t);
+    })();
+  </script>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header>
+    <div class="brand">⚡️ Ambition CRM</div>
+    <div class="page-title">
+      <div class="pt-name">🛡️ SUPPORT</div>
+      <div class="pt-desc">Personal network</div>
+    </div>
+    <div class="header-right">
+      <a id="link-sniper" class="linkbtn" target="_blank" rel="noopener"><img class="ico" src="icons/sniper-20.png" alt="" /> Sniper ↗</a>
+      <a id="link-medic" class="linkbtn" target="_blank" rel="noopener"><img class="ico" src="icons/meddic-20.png" alt="" /> Meddic ↗</a>
+      <a id="link-engineer" class="linkbtn" target="_blank" rel="noopener"><img class="ico" src="icons/wrench.png" alt="" /> Engineer ↗</a>
+      <a id="link-specops" class="linkbtn" target="_blank" rel="noopener"><img class="ico" src="icons/shield.png" alt="" /> SpecOps ↗</a>
+      <a id="link-uav" class="linkbtn" target="_blank" rel="noopener"><img class="ico" src="icons/uav-20.svg" alt="" /> UAV ↗</a>
+      <a id="link-commander" class="linkbtn" target="_blank" rel="noopener">⭐ Commander ↗</a>
+      <a id="link-antitank" class="linkbtn" target="_blank" rel="noopener">🚀 Anti-Tank ↗</a>
+      <button id="theme-toggle" title="Toggle light/dark">🌙</button>
+    </div>
+  </header>
+
+  <main>
+    <div class="toolbar">
+      <input id="f-search" type="text" class="search" placeholder="Search name, company, notes…" />
+      <button id="f-recc" class="sm" title="Only cards with a recommendation owed">🏅 Recc owed</button>
+      <select id="f-channel" class="sm">
+        <option value="">Any channel</option>
+        <option value="call">📞 Call</option>
+        <option value="text">💬 Text</option>
+        <option value="email">✉️ Email</option>
+        <option value="linkedin">in LinkedIn</option>
+      </select>
+      <button id="f-hide-done" class="sm" title="Hide cards marked completed">Hide completed</button>
+      <span id="filter-note" class="muted sm"></span>
+      <div class="spacer"></div>
+      <button id="add-toggle" class="primary sm">＋ Add person</button>
+    </div>
+
+    <div id="add-form" class="add-form hidden">
+      <div class="frow">
+        <div>
+          <span class="flabel">Name</span>
+          <input id="add-name" type="text" placeholder="Who is it?" />
+        </div>
+        <div>
+          <span class="flabel">Company</span>
+          <input id="add-company" type="text" placeholder="Where they work" />
+        </div>
+        <div>
+          <span class="flabel">LinkedIn URL (optional — links them to Sniper captures)</span>
+          <input id="add-url" type="url" placeholder="https://www.linkedin.com/in/…" />
+        </div>
+      </div>
+      <span class="flabel">Notes</span>
+      <textarea id="add-note" placeholder="Context, contact info, what you owe them…"></textarea>
+      <div class="factions">
+        <button id="add-cancel" class="ghost sm">Cancel</button>
+        <button id="add-save" class="primary sm">Add</button>
+      </div>
+    </div>
+
+    <div id="board" class="board"></div>
+  </main>
+
+  <div id="modal" class="modal hidden">
+    <div id="modal-body" class="modal-body"></div>
+  </div>
+
+  <div id="toast" class="toast hidden"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>

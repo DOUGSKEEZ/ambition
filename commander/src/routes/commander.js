@@ -2,18 +2,21 @@
 // items / digests / sitreps / intel; write endpoints run the tracker on demand, regenerate a SITREP,
 // edit curated intel, and toggle read state. All JSON.
 import { Router } from 'express';
-import { SOURCES, getSource, KINDS } from '../sources.js';
+import { SOURCES, getSource, KINDS, CATEGORIES } from '../sources.js';
 import { query } from '../db.js';
 import { runTracker } from '../tracker.js';
 import { regenerateDigests, regenerateSitrep, regenerateAllSitreps } from '../generate.js';
 import { getCompanyFacts } from '../rollup.js';
+import { fiscalInfo } from '../fiscal.js';
 
 const router = Router();
 
 // Public shape of a source config (no internal fields the client doesn't need).
 const publicSource = (s) => ({
-  key: s.key, label: s.label, profile: s.profile, homeUrl: s.homeUrl,
+  key: s.key, label: s.label, category: s.category || null, profile: s.profile, homeUrl: s.homeUrl,
   xListUrl: s.xListUrl || null, links: s.links || [],
+  // computed fresh per request so "days to quarter end" never goes stale
+  fiscal: fiscalInfo(s.fiscal),
   kinds: Object.keys(s.feeds || {}),
   // per-feed column-title overrides (e.g. OpenAI news → "Company")
   kindLabels: Object.fromEntries(
@@ -66,7 +69,7 @@ router.get('/companies', async (_req, res) => {
     const dg = byCompany(digests);
     const hl = groupHeadlines(headlines);
     const cnt = counts.rows.reduce((m, r) => ((m[r.company] = r), m), {});
-    const facts = await Promise.all(SOURCES.map((s) => getCompanyFacts(s.label, { appLimit: s.appLimit })));
+    const facts = await Promise.all(SOURCES.map((s) => getCompanyFacts(s.label, { appLimit: s.appLimit, fiscal: s.fiscal })));
 
     const companies = SOURCES.map((s, i) => ({
       ...publicSource(s),
@@ -76,7 +79,7 @@ router.get('/companies', async (_req, res) => {
       counts: cnt[s.label] || { total: 0, unread: 0 },
       actions: facts[i].actions,
     }));
-    res.json({ companies, sitrep });
+    res.json({ companies, categories: CATEGORIES, sitrep });
   } catch (err) {
     console.error('[GET /companies]', err);
     res.status(500).json({ error: err.message });
@@ -107,9 +110,10 @@ router.get('/company/:key', async (req, res) => {
       `SELECT section, title, body, source_url, updated_at FROM company_intel WHERE company = $1 ORDER BY section`,
       [source.label]
     );
-    const facts = await getCompanyFacts(source.label, { appLimit: source.appLimit });
+    const facts = await getCompanyFacts(source.label, { appLimit: source.appLimit, fiscal: source.fiscal });
     res.json({
       source: publicSource(source),
+      categories: CATEGORIES,
       company_id: facts.company_id,
       actions: facts.actions,
       intelDocs: source.intelDocs || [],
@@ -182,7 +186,7 @@ router.get('/sitrep', async (req, res) => {
   try {
     res.json({
       sitrep: await latestSitrep(scope),
-      facts: source ? await getCompanyFacts(source.label, { appLimit: source.appLimit }) : null,
+      facts: source ? await getCompanyFacts(source.label, { appLimit: source.appLimit, fiscal: source.fiscal }) : null,
     });
   } catch (err) {
     res.status(500).json({ error: err.message });

@@ -1,7 +1,8 @@
 import { Router } from 'express';
 import { query, withTransaction } from '../db.js';
 import { runTracker } from '../tracker.js';
-import { SOURCES, getSource } from '../sources.js';
+import { SOURCES, getSource, reapplyCooldownDays } from '../sources.js';
+import { getQuotaStatuses } from '../quota.js';
 
 const router = Router();
 
@@ -42,7 +43,10 @@ router.get('/config', (_req, res) => {
     reapplyHardDays: REAPPLY_HARD_DAYS,
     newDays: NEW_DAYS,
     dispositions: [...DISPOSITIONS],
-    sources: SOURCES.map((s) => ({ key: s.key, label: s.label, provider: s.provider, careersUrl: s.careersUrl || null })),
+    sources: SOURCES.map((s) => ({
+      key: s.key, label: s.label, provider: s.provider, careersUrl: s.careersUrl || null,
+      reapplyCooldownDays: reapplyCooldownDays(s),
+    })),
   });
 });
 
@@ -85,11 +89,17 @@ router.get('/events', async (req, res) => {
     let where = '';
     if (types.length) {
       params.push(types);
-      where = `WHERE event_type = ANY($${params.length})`;
+      where = `WHERE e.event_type = ANY($${params.length})`;
     }
+    // had_applied: a 'closed' event on a role you had already applied to (a soft rejection) — the
+    // applied_at <= created_at guard keeps an old closure from being flagged retroactively when
+    // the role later reopened and you applied then.
     const r = await query(
-      `SELECT id, posting_id, source, job_id, title, url, location, event_type, created_at
-         FROM uav_events ${where} ORDER BY created_at DESC, id DESC LIMIT $1`,
+      `SELECT e.id, e.posting_id, e.source, e.job_id, e.title, e.url, e.location, e.event_type, e.created_at,
+              (e.event_type = 'closed' AND jp.applied_at IS NOT NULL AND jp.applied_at <= e.created_at) AS had_applied
+         FROM uav_events e
+         LEFT JOIN job_postings jp ON jp.id = e.posting_id
+         ${where} ORDER BY e.created_at DESC, e.id DESC LIMIT $1`,
       params
     );
     res.json(r.rows);
@@ -100,45 +110,11 @@ router.get('/events', async (req, res) => {
 });
 
 // GET /api/quota — per-company application-limit status for sources that declare `appLimit`
-// ({max, windowDays}). Some companies cap applications in a rolling window (Google 3/30d, OpenAI
-// 5/180d). We count applications by each role's curated applied date — job_postings.last_applied_at,
-// the date shown/edited on the card — NOT the uav_events timestamp, which records when you clicked
-// "Mark applied" and can lag the real submission date you back-dated via the picker. One applied
-// role = one application (re-applies to the same role aren't separately counted). Then we work out
-// when headroom returns:
-//   • nextSlotInDays   — days until `used` drops below `max` (when you can apply again). 0 if not full.
-//   • oldestFreesInDays — days until the oldest in-window application ages out (when used drops by 1).
+// ({max, windowDays}). The computation lives in quota.js (shared with the tracker's
+// due-for-reapply suppression); see that module for the field semantics.
 router.get('/quota', async (_req, res) => {
   try {
-    const limited = SOURCES.filter((s) => s.appLimit && s.appLimit.max > 0 && s.appLimit.windowDays > 0);
-    const dayMs = 86400000;
-    const now = Date.now();
-    const out = await Promise.all(limited.map(async (s) => {
-      const { max, windowDays } = s.appLimit;
-      const winMs = windowDays * dayMs;
-      // Ascending applied dates (ms) inside the window, from the curated per-role date.
-      const r = await query(
-        `SELECT EXTRACT(EPOCH FROM last_applied_at) * 1000 AS ts
-           FROM job_postings
-          WHERE source = $1 AND last_applied_at IS NOT NULL
-            AND last_applied_at > NOW() - make_interval(days => $2)
-          ORDER BY last_applied_at ASC`,
-        [s.key, windowDays]
-      );
-      const ts = r.rows.map((x) => Number(x.ts));
-      const used = ts.length;
-      const remaining = Math.max(0, max - used);
-      const full = used >= max;
-      // When full, the (used-max)-th oldest event's expiry is what brings you back under the cap.
-      const nextSlotInDays = full
-        ? Math.max(0, Math.ceil((ts[used - max] + winMs - now) / dayMs))
-        : 0;
-      const oldestFreesInDays = used > 0
-        ? Math.max(0, Math.ceil((ts[0] + winMs - now) / dayMs))
-        : null;
-      return { source: s.key, max, windowDays, used, remaining, full, nextSlotInDays, oldestFreesInDays };
-    }));
-    res.json(out);
+    res.json(await getQuotaStatuses());
   } catch (err) {
     console.error('[GET /api/quota]', err);
     res.status(500).json({ error: err.message });

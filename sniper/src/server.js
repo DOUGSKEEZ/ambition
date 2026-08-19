@@ -6,6 +6,7 @@ import cors from 'cors';
 import captureRouter from './routes/capture.js';
 import companiesRouter from './routes/companies.js';
 import peopleRouter from './routes/people.js';
+import settingsRouter from './routes/settings.js';
 import { startWatcher } from './watcher.js';
 
 const ROOT = resolve(import.meta.dirname, '..');
@@ -27,6 +28,7 @@ app.use(express.json({ limit: '30mb' })); // full outerHTML + base64 photo
 app.use('/capture', captureRouter);
 app.use('/companies', companiesRouter);
 app.use('/people', peopleRouter);
+app.use('/settings', settingsRouter);
 
 // Static: profile photos and the review SPA.
 app.use('/media', express.static(mediaDir));

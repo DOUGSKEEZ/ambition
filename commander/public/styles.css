@@ -11,6 +11,12 @@
   --good: #2ecc71;
   --bad: #e74c3c;
   --warn: #f1c40f;
+  /* market-map category colors (keyed by sources.js CATEGORIES slugs) */
+  --cat-labs: #b07cff;
+  --cat-hyperscaler: #4f8cff;
+  --cat-silicon: #2ecc71;
+  --cat-infra: #ff9d4d;
+  --cat-apps: #ff7ab8;
 }
 [data-theme="light"] {
   color-scheme: light;
@@ -24,6 +30,11 @@
   --good: #1f9d57;
   --bad: #d23f31;
   --warn: #b8860b;
+  --cat-labs: #7c3aed;
+  --cat-hyperscaler: #2f6fe0;
+  --cat-silicon: #1f9d57;
+  --cat-infra: #c26a12;
+  --cat-apps: #c4327f;
 }
 
 * { box-sizing: border-box; scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
@@ -70,12 +81,34 @@ main { padding: 20px; max-width: 1600px; margin: 0 auto; }
 .sitrep-list li::marker { color: var(--accent); }
 .sitrep .sitrep-when { color: var(--muted); font-size: 12px; margin-left: auto; }
 .sitrep.pending .sitrep-body { color: var(--muted); font-style: italic; }
+/* the standing fiscal line (deterministic, rendered above the LLM narrative) */
+.sitrep-fiscal { font-size: 12.5px; color: var(--muted); margin: 0 0 8px; font-style: normal; }
+.sitrep-fiscal strong { color: var(--text); }
+
+/* --- dashboard: market-map category sections + filter chips --- */
+/* One modifier class per category slug sets --cat-c; headers, chips, dots and cards all consume it. */
+.cat-labs { --cat-c: var(--cat-labs); }
+.cat-hyperscaler { --cat-c: var(--cat-hyperscaler); }
+.cat-silicon { --cat-c: var(--cat-silicon); }
+.cat-infra { --cat-c: var(--cat-infra); }
+.cat-apps { --cat-c: var(--cat-apps); }
+.cat-other, .cat-all { --cat-c: var(--muted); }
+
+.cat-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--cat-c, currentColor); flex: none; display: inline-block; }
+.cat-section { margin-bottom: 28px; }
+.cat-head { display: flex; align-items: center; gap: 9px; color: var(--cat-c, var(--muted)); font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; padding-bottom: 7px; margin-bottom: 12px; border-bottom: 1px solid color-mix(in srgb, var(--cat-c, var(--muted)) 35%, transparent); }
+.cat-head .cat-count { color: var(--muted); font-size: 11px; font-weight: 600; border: 1px solid var(--border); border-radius: 999px; padding: 1px 8px; }
+
+.cat-chips { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.cat-chip { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; padding: 5px 11px; border-radius: 999px; }
+.cat-chip:hover { border-color: var(--cat-c, var(--accent)); }
+.cat-chip.active { border-color: var(--cat-c, var(--accent)); background: color-mix(in srgb, var(--cat-c, var(--accent)) 16%, transparent); }
 
 /* --- dashboard: company cards --- */
 .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(480px, 1fr)); gap: 18px; }
 @media (max-width: 560px) { .cards { grid-template-columns: 1fr; } }
-.ccard { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 0; overflow: hidden; display: flex; flex-direction: column; cursor: pointer; transition: border-color .1s; }
-.ccard:hover { border-color: var(--accent); }
+.ccard { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 0; overflow: hidden; display: flex; flex-direction: column; cursor: pointer; transition: border-color .1s; border-top: 3px solid var(--cat-c, var(--border)); }
+.ccard:hover { border-color: var(--accent); border-top-color: var(--cat-c, var(--accent)); }
 .ccard-head { display: flex; align-items: center; gap: 10px; padding: 14px 16px; border-bottom: 1px solid var(--border); }
 .ccard-name { font-size: 18px; font-weight: 800; letter-spacing: .02em; }
 
@@ -98,6 +131,14 @@ main { padding: 20px; max-width: 1600px; margin: 0 auto; }
 .badge.public { color: var(--good); border-color: color-mix(in srgb, var(--good) 45%, transparent); }
 .badge.private { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 45%, transparent); }
 .badge.unread { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 50%, transparent); }
+/* fiscal-quarter chip: mixed-case ("Q2 FY2027 · ends Jul 26 · 18d"), amber inside the ~30-day
+   end-of-quarter jam, dashed border when the calendar is assumed rather than documented */
+.badge.fiscal { text-transform: none; letter-spacing: 0; font-weight: 600; color: var(--text); white-space: nowrap; }
+.badge.fiscal.closing { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 55%, transparent); background: color-mix(in srgb, var(--warn) 8%, transparent); }
+.badge.fiscal.assumed { border-style: dashed; }
+.badge.fiscal.assumed:not(.closing) { color: var(--muted); }
+/* category badge on the company view (any .badge.cat-<slug>) */
+.badge[class*="cat-"] { display: inline-flex; align-items: center; gap: 6px; color: var(--cat-c, var(--muted)); border-color: color-mix(in srgb, var(--cat-c, var(--muted)) 45%, transparent); }
 .ccard-feeds { padding: 8px 16px 14px; display: flex; flex-direction: column; }
 .feedline { display: flex; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--border); align-items: flex-start; }
 .feedline:last-child { border-bottom: none; }

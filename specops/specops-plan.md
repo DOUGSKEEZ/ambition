@@ -34,10 +34,12 @@ angle converts to a screen, not just a reply?
 - **Different job than Medic.** Medic optimizes volume + reply rate. SpecOps optimizes *conversion* of a few
   live opportunities, plus interview readiness — a small number of high-stakes records, not a queue.
 
-## Interview / screen prep (the "Support" half)
+## Interview / screen prep (the "Support" half) → moved to Anti-Tank
 
-Beyond tracking: assemble per-opportunity prep — the job posting, the HM's background (from Sniper), Doug's
-matching proof points, likely questions. Scope TBD; the data model above comes first.
+This half **shipped as its own squad member**: 🚀 **Anti-Tank** (:7706) — per-opportunity briefings
+(posting + HM backgrounds + Commander intel + Doug's angle), checklists, and a drill mode over a
+question bank. It anchors on this app's `opportunities.id` and reads `opportunity_contacts` for the
+target HMs; SpecOps stays pure tracking. See [`../anti-tank/anti-tank-plan.md`](../anti-tank/anti-tank-plan.md).
 
 ## Status
 
@@ -48,9 +50,9 @@ the fields and attaches multiple target HMs (one primary). The chosen model diff
 sketch in two ways, per Doug's input: **multiple guessed HMs per role** (many-to-many join table, not a
 single `hiring_manager_id`) and an **optional/placeholder job listing** (only the company is required).
 
-Next iteration: the **interview-prep ("Support") half** above, and Engineer charts over this data (the
-funnel's post-Responded stages + comp/location/stage correlations). See
-[`../engineer/engineer-plan.md`](../engineer/engineer-plan.md).
+The **interview-prep ("Support") half** now lives in Anti-Tank (:7706, shipped 2026-07-08 — see above).
+Remaining next iteration: Engineer charts over this data (the funnel's post-Responded stages +
+comp/location/stage correlations). See [`../engineer/engineer-plan.md`](../engineer/engineer-plan.md).
 
 ## Open questions
 

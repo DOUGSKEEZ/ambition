@@ -1,6 +1,7 @@
 // Type-specific AI synthesis. Sends cleaned profile text to the local LLM
 // (OpenAI-compatible chat/completions) and returns { summary, ins }.
 import { jsonrepair } from 'jsonrepair';
+import { getSetting } from './settings.js';
 
 const SYSTEM = `You are a sharp outreach strategist for Doug McAfee. Profile of Doug (use only what's
 relevant; never repeat it back verbatim):
@@ -155,8 +156,13 @@ async function synthesizeAnthropic(messages) {
 
 /**
  * Generate { summary, ins } for a person of the given type.
- * Provider via AI_PROVIDER (anthropic|local). Default anthropic for quality; falls back to
- * local automatically when no key is set, so capture never depends on a key being present.
+ * Provider comes from the `ai_provider` setting (Settings tab), falling back to the
+ * AI_PROVIDER env var, then 'local'. Default 'local' (qwen3) so capture/regenerate never
+ * silently bill the Claude API — Claude is an explicit opt-in.
+ *
+ * Fallback is ONE-DIRECTIONAL on purpose: picking 'local' and having it fail returns empty
+ * notes rather than secretly escalating to the paid Claude API. Explicit 'anthropic' may
+ * still fall back to local (cheaper/safe) if the API call fails.
  * Returns { summary:'', ins:'' } if everything fails, so capture never blocks.
  */
 export async function synthesize(type, fields) {
@@ -164,14 +170,14 @@ export async function synthesize(type, fields) {
     { role: 'system', content: SYSTEM },
     { role: 'user', content: buildUserMessage(type, fields) },
   ];
-  let provider = (process.env.AI_PROVIDER || 'anthropic').toLowerCase();
+  let provider = (await getSetting('ai_provider') || process.env.AI_PROVIDER || 'local').toLowerCase();
   if (provider === 'anthropic' && !process.env.ANTHROPIC_API_KEY) {
     console.warn('[ai] anthropic selected but no ANTHROPIC_API_KEY — using local');
     provider = 'local';
   }
 
-  // Try the chosen provider; on any failure, fall back to the other one.
-  const order = provider === 'anthropic' ? ['anthropic', 'local'] : ['local', 'anthropic'];
+  // local: local-only (no escalation to paid Claude). anthropic: try Claude, then local.
+  const order = provider === 'anthropic' ? ['anthropic', 'local'] : ['local'];
   for (const p of order) {
     if (p === 'anthropic' && !process.env.ANTHROPIC_API_KEY) continue;
     try {
@@ -185,6 +191,6 @@ export async function synthesize(type, fields) {
     }
   }
 
-  console.error('[ai] all providers failed; returning empty notes');
+  console.error('[ai] synthesis failed; returning empty notes');
   return { summary: '', ins: '' };
 }

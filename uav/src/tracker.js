@@ -2,9 +2,10 @@
 // "Refresh now" button (POST /api/refresh) call runTracker(), so they always agree. The tracker
 // updates posting state (open/closed) and writes diff events — it NEVER touches the application
 // columns (applied_at/last_applied_at/application_count); only the apply API does.
-import { SOURCES, getSource } from './sources.js';
+import { SOURCES, getSource, reapplyCooldownDays } from './sources.js';
 import { getProvider } from './providers/index.js';
 import { query, withTransaction } from './db.js';
+import { getQuotaStatuses } from './quota.js';
 
 const REAPPLY_SOFT_DAYS = Number(process.env.REAPPLY_SOFT_DAYS) || 7;
 
@@ -97,15 +98,23 @@ async function diffSource(client, source, matched) {
     else if (row.was_closed) reopened.push(toEntry(row));
   }
 
-  // Close anything from this source that was open but is no longer in the matched set.
+  // Close anything from this source that was open but is no longer in the matched set. Closed
+  // entries also carry the application state: a role that closes AFTER you applied is a soft
+  // rejection (nobody's reading that resume anymore), and the digest calls those out separately.
   const closeRes = await client.query(
     `UPDATE job_postings
        SET closed_at = NOW()
      WHERE source = $1 AND closed_at IS NULL AND NOT (job_id = ANY($2::text[]))
-     RETURNING id, source, job_id, title, url, location`,
+     RETURNING id, source, job_id, title, url, location,
+               (applied_at IS NOT NULL) AS had_applied,
+               CASE WHEN last_applied_at IS NULL THEN NULL
+                    ELSE FLOOR(EXTRACT(EPOCH FROM (NOW() - last_applied_at)) / 86400)::int
+               END AS days_since_applied`,
     [source.key, seenIds]
   );
-  for (const row of closeRes.rows) closed.push(toEntry(row));
+  for (const row of closeRes.rows) {
+    closed.push({ ...toEntry(row), had_applied: row.had_applied, days_since_applied: row.days_since_applied });
+  }
 
   // Record the diff events.
   for (const e of opened) await insertEvent(client, e, 'opened');
@@ -159,16 +168,25 @@ export async function runTracker({ sourceKeys } = {}) {
   return summary;
 }
 
-// Open + applied postings whose last application is older than the soft cadence — the daily nudge.
+// Open + applied + still-ACTIVE postings whose last application is older than the re-apply
+// threshold — the daily nudge. Set-aside roles (rejected / not_interested) are excluded: a
+// rejection means "stop", not "reapply harder". The threshold is per-company: a source with a
+// reapply cooldown (see reapplyCooldownDays — OpenAI 180d, Google 30d) uses that instead of the
+// global soft cadence. And while a company's application quota is FULL, its roles are suppressed
+// entirely — you couldn't submit a new application anyway.
 async function findDueForReapply() {
   const r = await query(
     `SELECT id, source, job_id, title, url, location,
             FLOOR(EXTRACT(EPOCH FROM (NOW() - last_applied_at)) / 86400)::int AS days_since_applied
        FROM job_postings
-      WHERE closed_at IS NULL AND last_applied_at IS NOT NULL
+      WHERE closed_at IS NULL AND disposition = 'active' AND last_applied_at IS NOT NULL
         AND last_applied_at < NOW() - make_interval(days => $1::int)
       ORDER BY last_applied_at ASC`,
     [REAPPLY_SOFT_DAYS]
   );
-  return r.rows;
+  const quotaFull = new Set((await getQuotaStatuses()).filter((q) => q.full).map((q) => q.source));
+  return r.rows.filter((row) => {
+    const cooldown = reapplyCooldownDays(getSource(row.source)) ?? REAPPLY_SOFT_DAYS;
+    return row.days_since_applied >= cooldown && !quotaFull.has(row.source);
+  });
 }

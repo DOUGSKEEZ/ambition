@@ -6,7 +6,7 @@ const FETCH_TIMEOUT_MS = 15000;
 
 // Map a Greenhouse job into a normalized posting. departments/offices each carry {id,name} —
 // we keep both as `groups` so filters can match by the numeric id (exact) or the name.
-function normalize(job) {
+function normalize(job, source) {
   const groups = [];
   for (const d of job.departments || []) groups.push({ type: 'department', id: d.id, name: d.name });
   for (const o of job.offices || []) groups.push({ type: 'office', id: o.id, name: o.name });
@@ -18,7 +18,9 @@ function normalize(job) {
   return {
     jobId: String(job.id),
     title: job.title || '',
-    url: job.absolute_url || null,
+    // Some companies (Scale) serve postings on their own domain at <jobUrlBase>/<id>; the hosted
+    // job-boards.greenhouse.io absolute_url still works, but the native page is the better link.
+    url: source.jobUrlBase ? `${source.jobUrlBase}/${job.id}` : (job.absolute_url || null),
     location: job.location?.name || null,
     groups,
     raw: job,
@@ -33,5 +35,5 @@ export async function fetchJobs(source) {
   if (!res.ok) throw new Error(`HTTP ${res.status} from ${url}`);
   const body = await res.json();
   const jobs = Array.isArray(body?.jobs) ? body.jobs : [];
-  return jobs.map(normalize);
+  return jobs.map((job) => normalize(job, source));
 }

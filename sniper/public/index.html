@@ -24,8 +24,11 @@
       <div class="pt-desc">Capture, enrich &amp; review LinkedIn contacts</div>
     </div>
     <div class="header-right">
-      <a id="cross-link" class="linkbtn" target="_blank" rel="noopener"><img class="ico" src="icons/meddic-20.png" alt="" /> meddic ↗</a>
+      <a id="link-medic" class="linkbtn" target="_blank" rel="noopener"><img class="ico" src="icons/meddic-20.png" alt="" /> Meddic ↗</a>
+      <a id="link-engineer" class="linkbtn" target="_blank" rel="noopener"><img class="ico" src="icons/wrench.png" alt="" /> Engineer ↗</a>
+      <a id="link-specops" class="linkbtn" target="_blank" rel="noopener"><img class="ico" src="icons/shield.png" alt="" /> SpecOps ↗</a>
       <a id="link-uav" class="linkbtn" target="_blank" rel="noopener"><img class="ico" src="icons/uav-20.svg" alt="" /> UAV ↗</a>
+      <a id="link-support" class="linkbtn" target="_blank" rel="noopener">🛡️ Support ↗</a>
       <button id="theme-toggle" title="Toggle light/dark">🌙</button>
     </div>
   </header>
@@ -34,6 +37,7 @@
     <nav class="page-nav">
       <button id="tab-queue" class="active">Queue</button>
       <button id="tab-companies">Companies</button>
+      <button id="tab-settings">Settings</button>
     </nav>
 
     <!-- Queue view -->
@@ -170,6 +174,26 @@
         <button id="c-cancel" class="hidden">Cancel</button>
       </div>
       <ul class="companies-list" id="companies-list"></ul>
+    </section>
+
+    <!-- Settings view -->
+    <section id="view-settings" class="hidden">
+      <h2>Settings</h2>
+      <div class="field" style="max-width:520px">
+        <label for="set-ai-provider">AI model for contact notes</label>
+        <select id="set-ai-provider">
+          <option value="local">local (qwen3) — free, on-prem</option>
+          <option value="anthropic">Claude API — paid ($)</option>
+        </select>
+        <p class="muted" style="margin-top:8px">
+          Used to synthesize notes on every <strong>capture</strong> and when you click
+          <strong>Regenerate</strong>. <strong>local</strong> runs on your qwen3 server (no cost);
+          <strong>Claude</strong> calls the paid Anthropic API. If local fails it returns empty
+          notes rather than silently falling back to the paid API.
+        </p>
+        <button id="set-save" class="primary" style="margin-top:8px">Save</button>
+        <span id="set-status" class="muted" style="margin-left:10px"></span>
+      </div>
     </section>
   </main>
 

@@ -22,7 +22,12 @@ router.get('/', async (req, res) => {
               (p.next_action_date IS NULL OR p.next_action_date <= CURRENT_DATE) AS due,
               (p.last_action_at IS NOT NULL AND p.last_action_at < (NOW() - ($1 || ' days')::interval)) AS going_cold,
               ns.step_order AS next_step_order, ns.channel AS next_step_channel,
-              ns.purpose AS next_step_purpose
+              ns.purpose AS next_step_purpose,
+              EXISTS (
+                SELECT 1 FROM person_campaign_steps s
+                JOIN person_campaigns pcr ON pcr.id = s.person_campaign_id
+                WHERE pcr.person_id = p.id AND s.response_received
+              ) AS has_reply
        FROM people p
        JOIN companies c ON c.id = p.company_id
        LEFT JOIN person_campaigns pc ON pc.person_id = p.id AND pc.status = 'active'
@@ -102,7 +107,12 @@ router.get('/week', async (req, res) => {
               p.label, p.next_action_date, p.company_id, c.name AS company_name,
               pc.current_step, cam.name AS campaign_name,
               ns.step_order AS next_step_order, ns.channel AS next_step_channel,
-              ns.purpose AS next_step_purpose
+              ns.purpose AS next_step_purpose,
+              EXISTS (
+                SELECT 1 FROM person_campaign_steps s
+                JOIN person_campaigns pcr ON pcr.id = s.person_campaign_id
+                WHERE pcr.person_id = p.id AND s.response_received
+              ) AS has_reply
        FROM people p
        JOIN companies c ON c.id = p.company_id
        LEFT JOIN person_campaigns pc ON pc.person_id = p.id AND pc.status = 'active'

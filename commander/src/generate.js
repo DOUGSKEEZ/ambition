@@ -70,7 +70,7 @@ export async function regenerateSitrep(scope) {
   const source = SOURCES.find((s) => s.label === scope);
   const facts = scope === 'all'
     ? await getAllFacts(SOURCES)
-    : await getCompanyFacts(scope, { appLimit: source?.appLimit });
+    : await getCompanyFacts(scope, { appLimit: source?.appLimit, fiscal: source?.fiscal });
   const res = await writeSitrep({ scope, facts });
   if (!res) return null;
   await query(

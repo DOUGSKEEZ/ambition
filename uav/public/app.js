@@ -7,6 +7,7 @@ const $ = (id) => document.getElementById(id);
   const host = location.hostname;
   const set = (id, port) => { const a = $(id); if (a) a.href = `${location.protocol}//${host}:${port}/`; };
   set('link-sniper', 7700); set('link-medic', 7701); set('link-engineer', 7702); set('link-specops', 7703);
+  set('link-support', 7707);
   const btn = $('theme-toggle');
   const sync = () => { btn.textContent = document.documentElement.getAttribute('data-theme') === 'light' ? '☀️' : '🌙'; };
   if (btn) {
@@ -36,6 +37,7 @@ const jsonPost = (path, obj) => api(path, { method: 'POST', headers: { 'Content-
 let CONFIG = { reapplySoftDays: 7, reapplyHardDays: 14, newDays: 3, sources: [] };
 let SOURCE_LABEL = {};
 let SOURCE_CAREERS = {}; // source key -> overall careers-page URL (links the company group header)
+let SOURCE_COOLDOWN = {}; // source key -> re-apply cooldown days (OpenAI/Google), null when none
 let statusFilter = 'open';
 let sourceFilter = '';
 let asideOpen = false; // is the "Set aside" (rejected/not-interested) section expanded?
@@ -110,12 +112,28 @@ function relTime(iso) {
   return `${Math.round(diff / 86400)}d ago`;
 }
 
+// Re-apply thresholds for a company: normally the global soft/hard cadence, but a company with a
+// re-apply cooldown (OpenAI 180d, Google 30d — they won't take another application sooner) ages
+// against that instead, with the same soft→hard grace width past it.
+function reapplyThresholds(src) {
+  const cd = SOURCE_COOLDOWN[src];
+  if (cd && cd > CONFIG.reapplySoftDays) {
+    return { soft: cd, hard: cd + (CONFIG.reapplyHardDays - CONFIG.reapplySoftDays) };
+  }
+  return { soft: CONFIG.reapplySoftDays, hard: CONFIG.reapplyHardDays };
+}
+
 // The aging badge for an applied role: green fresh, amber at soft cadence, red at hard cadence.
-function reapplyBadge(days) {
+// Rejected / not-interested roles never nag: the badge stays informational (no due/re-apply note).
+function reapplyBadge(p) {
+  const days = p.days_since_applied;
   if (days == null) return '';
   let cls = 'fresh', note = '';
-  if (days >= CONFIG.reapplyHardDays) { cls = 'overdue'; note = ' · re-apply!'; }
-  else if (days >= CONFIG.reapplySoftDays) { cls = 'due'; note = ' · due'; }
+  if (p.disposition === 'active') {
+    const { soft, hard } = reapplyThresholds(p.source);
+    if (days >= hard) { cls = 'overdue'; note = ' · re-apply!'; }
+    else if (days >= soft) { cls = 'due'; note = ' · due'; }
+  }
   return `<span class="age-badge ${cls}">applied ${days}d ago${note}</span>`;
 }
 
@@ -168,7 +186,7 @@ function specOpsLink(p) {
 function appliedControl(p) {
   return p.last_applied_at != null
     ? `<div class="apply-state">
-         ${reapplyBadge(p.days_since_applied)}
+         ${reapplyBadge(p)}
          <input type="date" class="age-date" data-id="${p.id}" value="${p.last_applied_on || ''}" max="${todayStr()}" title="Change the date you applied">
          ${p.application_count > 1 ? `<span class="muted sm">×${p.application_count}</span>` : ''}
          <button class="sm" data-act="reapply" data-id="${p.id}">Re-applied today</button>
@@ -247,7 +265,7 @@ function asideRow(p) {
 // freshly-applied at the bottom.
 function radarOrder(p) {
   if (p.is_new) return 0;
-  if (p.days_since_applied != null && p.days_since_applied >= CONFIG.reapplySoftDays) return 1;
+  if (p.days_since_applied != null && p.days_since_applied >= reapplyThresholds(p.source).soft) return 1;
   if (p.days_since_applied == null) return 2;
   return 3;
 }
@@ -345,10 +363,12 @@ function renderHistory(events) {
     const m = EVENT_META[e.event_type] || { cls: '', label: e.event_type };
     const co = SOURCE_LABEL[e.source] || e.source;
     const title = e.url ? `<a class="link" href="${esc(e.url)}" target="_blank" rel="noopener">${esc(e.title)}</a>` : esc(e.title);
+    // A closure on a role you had applied to is a soft rejection — flag it in the log.
+    const flag = e.had_applied ? ' (had Applied ⛔️)' : '';
     return `<div class="event">
       <span class="ev-dot ${m.cls}"></span>
       <div class="ev-body">
-        <div class="ev-line"><span class="ev-type ${m.cls}">${m.label}</span> ${title}</div>
+        <div class="ev-line"><span class="ev-type ${m.cls}">${m.label}${flag}</span> ${title}</div>
         <div class="ev-sub muted sm">${esc(co)} · ${relTime(e.created_at)}</div>
       </div>
     </div>`;
@@ -599,6 +619,7 @@ $('radar').addEventListener('change', async (e) => {
     CONFIG = await api('/api/config');
     SOURCE_LABEL = Object.fromEntries(CONFIG.sources.map((s) => [s.key, s.label]));
     SOURCE_CAREERS = Object.fromEntries(CONFIG.sources.map((s) => [s.key, s.careersUrl]));
+    SOURCE_COOLDOWN = Object.fromEntries(CONFIG.sources.map((s) => [s.key, s.reapplyCooldownDays]));
     const sel = $('source');
     for (const s of CONFIG.sources) {
       const o = document.createElement('option');

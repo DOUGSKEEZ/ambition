@@ -8,6 +8,7 @@ const $ = (id) => document.getElementById(id);
   const medic = $('link-medic'); if (medic) medic.href = `${location.protocol}//${host}:7701/`;
   const eng = $('link-engineer'); if (eng) eng.href = `${location.protocol}//${host}:7702/`;
   const uav = $('link-uav'); if (uav) uav.href = `${location.protocol}//${host}:7704/`;
+  const support = $('link-support'); if (support) support.href = `${location.protocol}//${host}:7707/`;
   const btn = $('theme-toggle');
   const sync = () => { btn.textContent = document.documentElement.getAttribute('data-theme') === 'light' ? '☀️' : '🌙'; };
   if (btn) {
@@ -278,11 +279,15 @@ function card(o) {
   const isCol = collapsed.has(o.id);
   const accent = o.accent_color ? ` accent-${o.accent_color}` : '';
   const outcome = o.stage === 'closed' && o.outcome ? `<span class="badge outcome">${esc(o.outcome)}</span>` : '';
+  // The linked UAV posting has closed — a soft rejection. Flagged on the card (any stage but
+  // Decision) so notes can be added before moving it to the Closed/Decision column by hand.
+  const postingClosed = o.job_posting_closed_at && o.stage !== 'closed'
+    ? '<span class="badge posting-closed" title="The linked UAV job posting has closed — soft rejection. Add notes, then move the card to Decision.">⛔️ posting closed</span>' : '';
   const stamp = o.stamp ? `<span class="oc-stamp">${esc(o.stamp)}</span>` : '';
   // Header is always shown (company + title, stamp, paint + collapse controls); the body is hidden when collapsed.
   const head = `<div class="oc-head">
     <div class="oc-titles">
-      <div class="oc-company">${companyIcon(o.company_id)}${esc(o.company_name)} ${outcome}</div>
+      <div class="oc-company">${companyIcon(o.company_id)}${esc(o.company_name)} ${outcome}${postingClosed}</div>
       <div class="oc-role">${o.role_title ? esc(o.role_title) : '<span class="muted">untitled role</span>'}</div>
     </div>
     ${stamp}

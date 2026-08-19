@@ -127,10 +127,20 @@ RULES — this is an ORDERS briefing, not a status report:
 - Every line must be an imperative action or a direct callout.
 - ALWAYS lead with any "critical" flag (a live Screen & Interview) — name the role(s) and tell him to drive them.
 - Then the 1-3 highest-severity remaining actions${isAll ? ', naming the company each belongs to. If one company is clearly being neglected (multiple flags), call that out by name' : ''}.
-- Use ONLY the flags given. If there are no flags at all, say the pipeline is clean and to go hunting for new targets.`;
-  const user = isAll
+- Use ONLY the flags given. If there are no flags at all, say the pipeline is clean and to go hunting for new targets.
+- Fiscal context (if given) tells you where each company sits in ITS fiscal quarter. A quarter closing within ~30 days means their sales org is in end-of-quarter jam — worth ONE line of timing advice (e.g. hold outreach until the quarter turns, or strike right after close). Use the dates provided VERBATIM; never invent or re-derive fiscal dates.`;
+  // One deterministic fiscal line per company (from fiscal.js via rollup facts) — grounding only;
+  // the UI renders the authoritative last/next quarter-end line itself.
+  const fiscalLine = (f) =>
+    f ? `${f.label}: last quarter ended ${f.lastQuarterEnd}, current quarter closes ${f.nextQuarterEnd} (${f.daysToQuarterEnd}d)${f.confirmed ? '' : ' [assumed calendar year]'}` : null;
+  const fiscalCtx = isAll
+    ? (facts.companies || []).map((c) => fiscalLine(c.fiscal) && `${c.company} — ${fiscalLine(c.fiscal)}`)
+        .filter(Boolean).join('\n')
+    : fiscalLine(facts.fiscal);
+  const user = (isAll
     ? `Ranked action flags across all companies:\n${JSON.stringify(facts.actions, null, 2)}`
-    : `Ranked action flags for ${scope}:\n${JSON.stringify(facts.actions, null, 2)}`;
+    : `Ranked action flags for ${scope}:\n${JSON.stringify(facts.actions, null, 2)}`)
+    + (fiscalCtx ? `\n\nFiscal context:\n${fiscalCtx}` : '');
   const r = await tryComplete({ system, user, maxTokens: 320 });
   return r ? { narrative: r.text.trim(), provider: r.provider } : null;
 }

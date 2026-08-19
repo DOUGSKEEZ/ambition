@@ -112,6 +112,11 @@ th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--bo
 th { color: var(--muted); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
 tbody tr { cursor: pointer; }
 tbody tr:hover { background: var(--panel-2); }
+/* Contact got a reply on some campaign step: a quiet green wash so it reads at a
+   glance without shouting over heat badges. Hover stays slightly stronger. */
+tbody tr.has-reply { background: color-mix(in srgb, var(--good) 7%, transparent); }
+tbody tr.has-reply td:first-child { box-shadow: inset 3px 0 0 color-mix(in srgb, var(--good) 55%, transparent); }
+tbody tr.has-reply:hover { background: color-mix(in srgb, var(--good) 13%, transparent); }
 .thumb { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; background: var(--panel-2); }
 
 .badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; background: var(--panel-2); border: 1px solid var(--border); }
@@ -213,6 +218,7 @@ button.sent-today { background: var(--good); border-color: var(--good); color: #
 /* Keep the ✅ staged marker and the date picker on one line (they'd otherwise wrap in a
    narrow Next action column). */
 .na-cell { white-space: nowrap; }
+.na-cell .postpone { margin-left: 4px; }
 .flex { display: flex; gap: 8px; align-items: center; }
 .wrap { flex-wrap: wrap; }
 

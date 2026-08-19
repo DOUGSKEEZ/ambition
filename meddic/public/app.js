@@ -1,12 +1,12 @@
 // meddic SPA — vanilla JS, same-origin fetch.
 const $ = (id) => document.getElementById(id);
 
-// --- Theme + cross-app link (shared pattern with sniper) ---
+// --- Theme + cross-app links (shared chrome) ---
 (function initChrome() {
-  const link = document.getElementById('cross-link');
-  if (link) link.href = `${location.protocol}//${location.hostname}:7700/`; // -> sniper
-  const uav = document.getElementById('link-uav');
-  if (uav) uav.href = `${location.protocol}//${location.hostname}:7704/`; // -> uav
+  const host = location.hostname;
+  const set = (id, port) => { const a = $(id); if (a) a.href = `${location.protocol}//${host}:${port}/`; };
+  set('link-sniper', 7700); set('link-engineer', 7702); set('link-specops', 7703); set('link-uav', 7704);
+  set('link-support', 7707);
   const btn = document.getElementById('theme-toggle');
   const sync = () => { btn.textContent = document.documentElement.getAttribute('data-theme') === 'light' ? '☀️' : '🌙'; };
   if (btn) {
@@ -214,11 +214,16 @@ function fmtDate(d) {
   return dt.toLocaleDateString('en-US', { month: 'short', day: '2-digit' });
 }
 
-// Today's date as YYYY-MM-DD in the user's local timezone (not UTC — toISOString would
+// Dates as YYYY-MM-DD in the user's local timezone (not UTC — toISOString would
 // roll over a day near midnight). Matches the <input type="date"> value format.
-function todayStr() {
-  const d = new Date();
+function ymd(d) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+function todayStr() { return ymd(new Date()); }
+function tomorrowStr() {
+  const d = new Date();
+  d.setDate(d.getDate() + 1);
+  return ymd(d);
 }
 
 // Query-string fragment for the global company filter, '' when "All companies" is active
@@ -311,7 +316,8 @@ async function loadToday() {
   $('today-note').textContent = `${rows.length} due${cooling ? ` · ${cooling} going cold` : ''}`;
   for (const r of rows) {
     const tr = document.createElement('tr');
-    const next = r.next_step_purpose ? `${channelTag(r.next_step_channel)} ${esc(r.next_step_purpose)}` : '<span class="muted">— no steps —</span>';
+    if (r.has_reply) tr.classList.add('has-reply');
+    const next = r.next_step_purpose ? `Step ${r.next_step_order}: ${channelTag(r.next_step_channel)} ${esc(r.next_step_purpose)}` : '<span class="muted">— no steps —</span>';
     tr.innerHTML = `
       <td><img class="thumb" src="${photoUrl(r)}"></td>
       <td class="emoji-cell"></td>
@@ -326,6 +332,7 @@ async function loadToday() {
     tr.querySelector('.emoji-cell').appendChild(makeEmoji(r.id, r.emoji || ''));
     tr.querySelector('.label-cell').appendChild(makeNick(r.id, r.label || ''));
     tr.querySelector('.na-cell').appendChild(makeNextAction(r, loadToday));
+    tr.querySelector('.na-cell').appendChild(makePostpone(r));
     body.appendChild(tr);
   }
   loadDone().catch((e) => toast(e.message));
@@ -413,6 +420,7 @@ async function loadWeek() {
   $('tomorrow-note').textContent = `${list.length} planned · ${fmtDate(start)}–${fmtDate(end)}`;
   for (const r of list) {
     const tr = document.createElement('tr');
+    if (r.has_reply) tr.classList.add('has-reply');
     const next = r.next_step_purpose ? `${channelTag(r.next_step_channel)} ${esc(r.next_step_purpose)}` : '<span class="muted">— no steps —</span>';
     tr.innerHTML = `
       <td><img class="thumb" src="${photoUrl(r)}"></td>
@@ -451,6 +459,26 @@ function makeNextAction(r, reloadFn = loadWeek) {
     } catch (e) { toast(e.message); input.value = r.next_action_date ? r.next_action_date.slice(0, 10) : ''; }
   };
   return input;
+}
+
+// One-click postpone: push a contact's next action to tomorrow (drops it off Today).
+function makePostpone(r, reloadFn = loadToday) {
+  const btn = document.createElement('button');
+  btn.className = 'sm postpone';
+  btn.textContent = 'tmrw →';
+  btn.title = 'Postpone to tomorrow';
+  btn.onclick = async (e) => {
+    e.stopPropagation();
+    try {
+      await api(`/people/${r.id}`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ next_action_date: tomorrowStr() }),
+      });
+      toast('Postponed to tomorrow');
+      reloadFn();
+    } catch (err) { toast(err.message); }
+  };
+  return btn;
 }
 
 // ---------- Roster ----------
@@ -516,6 +544,7 @@ async function loadRoster() {
   $('roster-empty').classList.toggle('hidden', rows.length > 0);
   for (const r of rows) {
     const tr = document.createElement('tr');
+    if (r.has_reply) tr.classList.add('has-reply');
     tr.innerHTML = `
       <td><img class="thumb" src="${photoUrl(r)}"></td>
       <td class="emoji-cell"></td>
@@ -526,10 +555,11 @@ async function loadRoster() {
       <td>${esc(r.campaign_name) || '<span class="muted">—</span>'}</td>
       <td>${r.current_step ? 'step ' + r.current_step : ''}</td>
       <td>${heatBadge(r.hot_cold)}</td>
-      <td class="muted">${stagedIcon(r.staged)}${fmtDate(r.next_action_date)}</td>`;
-    tr.onclick = (e) => { if (!e.target.closest('.nick, .nick-input, .emoji-chip, .emoji-input')) openPerson(r.id); };
+      <td class="na-cell">${stagedIcon(r.staged)}</td>`;
+    tr.onclick = (e) => { if (!e.target.closest('.nick, .nick-input, .na-input, .emoji-chip, .emoji-input')) openPerson(r.id); };
     tr.querySelector('.name-cell').appendChild(makeNick(r.id, r.label || ''));
     tr.querySelector('.emoji-cell').appendChild(makeEmoji(r.id, r.emoji || ''));
+    tr.querySelector('.na-cell').appendChild(makeNextAction(r, loadRoster));
     body.appendChild(tr);
   }
 }
@@ -606,10 +636,9 @@ function stepCard(s, idx, steps) {
     <textarea data-f="customized_text" placeholder="Message text (draft, then edit)…">${esc(s.customized_text)}</textarea>
     <div class="draft-row">
       <button class="draft sm">✨ Draft</button>
-      <select class="draft-provider sm" title="provider">
-        <option value="">default (local)</option>
+      <select class="draft-provider sm" title="Which model drafts this message">
         <option value="local">local (qwen3)</option>
-        <option value="anthropic">Claude</option>
+        <option value="anthropic">Claude (API $)</option>
       </select>
       <span class="spacer"></span>
       <button class="save-step primary sm">Save step</button>
@@ -651,6 +680,11 @@ function stepCard(s, idx, steps) {
     } catch (e) { toast(e.message); }
   };
   el.querySelector('.save-step').onclick = () => commit();
+  // Provider choice is sticky across steps/sessions. Default to local (qwen3) so drafting
+  // never silently bills the Claude API — Claude is an explicit opt-in per the picker.
+  const provSel = el.querySelector('.draft-provider');
+  provSel.value = localStorage.getItem('meddic.draftProvider') || 'local';
+  provSel.onchange = () => localStorage.setItem('meddic.draftProvider', provSel.value);
   // One-click "sent today": mark sent and stamp today's date, saving any draft edits too.
   el.querySelector('.sent-today')?.addEventListener('click', () => commit({ sent: true, sent_at: todayStr() }));
   el.querySelector('.draft').onclick = async () => {

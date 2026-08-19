@@ -9,7 +9,8 @@ const router = Router();
 router.get('/', async (req, res) => {
   try {
     const params = [];
-    const where = ["p.import_status <> 'rejected'"];
+    // 'support' = personal-network rows owned by the Support app — not opportunity contacts.
+    const where = ["p.import_status NOT IN ('rejected', 'support')"];
     const companyId = Number.parseInt(req.query.company_id, 10);
     if (Number.isInteger(companyId)) { params.push(companyId); where.push(`p.company_id = $${params.length}`); }
 

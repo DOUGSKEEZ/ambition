@@ -24,8 +24,13 @@ const UA = 'Mozilla/5.0 (compatible; ambition-commander/1.0; +https://dougmcafee
 const clean = (s) => String(s ?? '').replace(/\s+/g, ' ').trim();
 
 // Parse a human date string ("Jun 30, 2026") into an ISO date, or null if unparseable/absent.
+// Event listings often show a RANGE ("August 1-6, 2026" / "Aug 30 – Sep 2, 2026"). GOTCHA: bare
+// Date.parse doesn't reject the first form — it reads "6, 2026" as year 6 and returns 2006-08-01 —
+// so ranges are normalized to their start date before parsing.
 function parseDate(text) {
-  const t = clean(text);
+  const t = clean(text)
+    .replace(/(\d{1,2})\s*[-–—]\s*\d{1,2}(,?\s*\d{4})/, '$1$2') // "August 1-6, 2026" → "August 1, 2026"
+    .replace(/(\d{1,2})\s*[-–—]\s*[A-Za-z]+\s+\d{1,2}(,?\s*\d{4})/, '$1$2'); // "Aug 30 – Sep 2, 2026" → "Aug 30, 2026"
   if (!t) return null;
   const ms = Date.parse(t);
   return Number.isNaN(ms) ? null : new Date(ms).toISOString();

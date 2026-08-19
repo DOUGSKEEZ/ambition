@@ -43,7 +43,9 @@ router.get('/', async (req, res) => {
   try {
     const { import_status } = req.query;
     const params = [];
-    let where = '';
+    // Personal-network ('support') rows never surface in the review UI — even under
+    // the "all" filter. An explicit ?import_status=support still returns them.
+    let where = "WHERE p.import_status <> 'support'";
     if (import_status) {
       params.push(import_status);
       where = 'WHERE p.import_status = $1';

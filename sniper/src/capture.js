@@ -63,9 +63,14 @@ async function savePhoto(slug, dataUrl, photoUrl) {
  * Process one capture payload. Idempotent on linkedin_slug.
  * On recapture, refreshes deterministic fields + raw HTML only; never touches
  * ai_summary, ai_ins, my_notes, import_status, type, company_id.
+ * payload.destination === 'support' (the extension's "→ Support" button) inserts new
+ * rows as import_status='support' (personal network, hidden from the review queue),
+ * skips AI enrichment, and adds the person to the Support app's network_people list.
+ * An already-staged/active person keeps their Sniper status — they just also join Support.
  * @returns {object} the upserted people row
  */
 export async function ingest(payload) {
+  const toSupport = payload.destination === 'support';
   const fields = parseProfile(payload);
   const slug = fields.linkedin_slug;
   if (!slug) throw new Error('could not derive linkedin_slug from url');
@@ -100,7 +105,7 @@ export async function ingest(payload) {
       $1, $2, $3, $4, $5, $6,
       $7, $8, $9, $10,
       $11, $12, $13, $14, $15,
-      $16, NULL, NULL, $17, 'staged', $18
+      $16, NULL, NULL, $17, $19, $18
     )
     ON CONFLICT (linkedin_slug) DO UPDATE SET
       linkedin_url     = EXCLUDED.linkedin_url,
@@ -123,16 +128,29 @@ export async function ingest(payload) {
     slug, payload.url || null, payload.company_id ?? null, payload.type || null, payload.priority ?? null, payload.my_notes ?? null,
     fields.name, fields.title, fields.location, fields.about,
     fields.current_company, fields.current_title, fields.current_tenure, fields.previous_title, fields.previous_company,
-    photoPath, rawPath, capturedAt,
+    photoPath, rawPath, capturedAt, toSupport ? 'support' : 'staged',
   ];
 
   const result = await query(sql, values);
   const row = result.rows[0];
   console.log(`[capture] ${isNew ? 'created' : 'updated'} ${slug} (id=${row.id})`);
 
+  // "→ Support": add to the Support app's board. DO NOTHING preserves the note, badges, and
+  // column of a row Doug already added manually — the apps link up via linkedin_slug at read
+  // time. A new row takes the defaults (Active column, no sort_order = top of the column).
+  if (toSupport) {
+    await query(
+      `INSERT INTO network_people (linkedin_slug, name, note)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (linkedin_slug) DO NOTHING`,
+      [slug, row.name, payload.my_notes ?? null]
+    );
+  }
+
   // Fire-and-forget AI synthesis: caller gets the staged row immediately; AI text
-  // lands a bit later. Only on first capture (recapture preserves existing notes).
-  if (isNew) enrich(row.id, payload.type || 'peer', fields);
+  // lands a bit later. Only on first capture (recapture preserves existing notes);
+  // personal-network captures skip AI entirely.
+  if (isNew && !toSupport) enrich(row.id, payload.type || 'peer', fields);
 
   return row;
 }

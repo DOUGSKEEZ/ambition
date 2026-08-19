@@ -1,12 +1,12 @@
 // Sniper review UI — vanilla JS, same-origin fetch.
 const $ = (id) => document.getElementById(id);
 
-// --- Theme + cross-app link (shared pattern with meddic) ---
+// --- Theme + cross-app links (shared chrome) ---
 (function initChrome() {
-  const link = document.getElementById('cross-link');
-  if (link) link.href = `${location.protocol}//${location.hostname}:7701/`; // -> meddic
-  const uav = document.getElementById('link-uav');
-  if (uav) uav.href = `${location.protocol}//${location.hostname}:7704/`; // -> uav
+  const host = location.hostname;
+  const set = (id, port) => { const a = $(id); if (a) a.href = `${location.protocol}//${host}:${port}/`; };
+  set('link-medic', 7701); set('link-engineer', 7702); set('link-specops', 7703); set('link-uav', 7704);
+  set('link-support', 7707);
   const btn = document.getElementById('theme-toggle');
   const sync = () => { btn.textContent = document.documentElement.getAttribute('data-theme') === 'light' ? '☀️' : '🌙'; };
   if (btn) {
@@ -45,11 +45,12 @@ function toast(msg) {
 }
 
 function show(view) {
-  for (const v of ['queue', 'detail', 'companies']) {
+  for (const v of ['queue', 'detail', 'companies', 'settings']) {
     $(`view-${v}`).classList.toggle('hidden', v !== view);
   }
   $('tab-queue').classList.toggle('active', view === 'queue');
   $('tab-companies').classList.toggle('active', view === 'companies');
+  $('tab-settings').classList.toggle('active', view === 'settings');
   fitAll(); // textareas can't measure scrollHeight while hidden — fit once the view is visible
 }
 
@@ -375,9 +376,39 @@ async function submitCompany() {
   await loadCompanies();
 }
 
+// ---------- Settings ----------
+async function loadSettings() {
+  $('set-status').textContent = '';
+  try {
+    const s = await api('/settings');
+    $('set-ai-provider').value = s.ai_provider || 'local';
+  } catch (e) {
+    toast(e.message);
+  }
+}
+
+async function saveSettings() {
+  const ai_provider = $('set-ai-provider').value;
+  $('set-status').textContent = 'saving…';
+  try {
+    const s = await api('/settings', {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ai_provider }),
+    });
+    $('set-ai-provider').value = s.ai_provider;
+    $('set-status').textContent = 'saved';
+    toast(`AI model set to ${s.ai_provider === 'anthropic' ? 'Claude (paid)' : 'local (qwen3)'}`);
+  } catch (e) {
+    $('set-status').textContent = '';
+    toast(e.message);
+  }
+}
+
 // ---------- Wire up ----------
 $('tab-queue').onclick = () => { show('queue'); loadQueue(); };
 $('tab-companies').onclick = () => { show('companies'); loadCompanies(); };
+$('tab-settings').onclick = () => { show('settings'); loadSettings(); };
+$('set-save').onclick = () => saveSettings();
 $('refresh-queue').onclick = loadQueue;
 $('status-filter').onchange = loadQueue;
 $('priority-filter').onchange = loadQueue;

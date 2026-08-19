@@ -26,7 +26,12 @@ router.get('/', async (req, res) => {
     const result = await query(
       `SELECT p.*, c.name AS company_name,
               pc.id AS run_id, pc.campaign_id, pc.current_step, pc.status AS run_status,
-              cam.name AS campaign_name
+              cam.name AS campaign_name,
+              EXISTS (
+                SELECT 1 FROM person_campaign_steps s
+                JOIN person_campaigns pcr ON pcr.id = s.person_campaign_id
+                WHERE pcr.person_id = p.id AND s.response_received
+              ) AS has_reply
        FROM people p
        LEFT JOIN companies c ON c.id = p.company_id
        LEFT JOIN person_campaigns pc ON pc.person_id = p.id AND pc.status = 'active'

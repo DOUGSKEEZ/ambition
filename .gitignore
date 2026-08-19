@@ -1,0 +1,7 @@
+# Personal documents (resumes, letters) — these stay local, never in a public repo.
+*.pdf
+*.docx
+
+# Claude Code: per-machine permissions/state. The shared project skills under
+# .claude/skills/ are tracked; this file is not.
+.claude/settings.local.json

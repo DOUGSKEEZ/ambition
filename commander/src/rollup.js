@@ -14,6 +14,7 @@
 // flag. Severity ranks: critical > high > medium > low (cards show the top few; the SITREP leads
 // with criticals).
 import { query } from './db.js';
+import { fiscalInfo } from './fiscal.js';
 
 const DUE_SOON_DAYS = Number(process.env.DUE_SOON_DAYS) || 3;
 
@@ -142,10 +143,13 @@ function buildActions(company, f, roles, opps) {
 
 // Gather facts + actions for one company. Each slice is independent + best-effort so a schema drift
 // in one app degrades that slice to zeros instead of failing the whole rollup.
-export async function getCompanyFacts(company, { appLimit } = {}) {
+export async function getCompanyFacts(company, { appLimit, fiscal } = {}) {
   const facts = {
     company,
     company_id: null,
+    // Pure date math (no DB): where the company sits in ITS fiscal year — last/next quarter end is
+    // standing SITREP intel (sales-team deadlines and jams), so it's always present in the facts.
+    fiscal: fiscalInfo(fiscal),
     funnel: { sniper_staged: 0, active_contacts: 0, no_campaign: 0, no_due_date: 0, due_not_staged: 0 },
     roles: { open: 0, unapplied: 0 },
     opportunities: { by_stage: {}, interviews: [], open: 0 },
@@ -172,7 +176,7 @@ export async function getCompanyFacts(company, { appLimit } = {}) {
 // Whole-campaign: per-company facts + a flat, globally-ranked action list for the dashboard SITREP.
 export async function getAllFacts(sources) {
   const companies = [];
-  for (const s of sources) companies.push(await getCompanyFacts(s.label, { appLimit: s.appLimit }));
+  for (const s of sources) companies.push(await getCompanyFacts(s.label, { appLimit: s.appLimit, fiscal: s.fiscal }));
   const actions = companies
     .flatMap((c) => c.actions.map((a) => ({ ...a, company: c.company })))
     .sort((a, b) => SEVERITY_RANK[a.severity] - SEVERITY_RANK[b.severity]);
